@@ -162,6 +162,9 @@ type (
 	GuildsTreeUIConfig struct {
 		TreeUIConfig
 		AutoExpandFolders bool `toml:"auto_expand_folders"`
+		// Whether channels and categories you muted are left out of the guilds tree, along with the channels of a muted category.
+		// They can still be opened from the channels picker. The tree is rebuilt with the change when the session reconnects.
+		HideMutedChannels bool `toml:"hide_muted_channels"`
 	}
 
 	ScrollBarUIConfig struct {
@@ -279,7 +282,7 @@ func defaultUI() UIConfig {
 		Title:       left,
 		Footer:      left,
 		Border:      BorderUIConfig{Enabled: true, Padding: [4]int{0, 0, 1, 1}, NormalSet: round, ActiveSet: round},
-		GuildsTree:  GuildsTreeUIConfig{TreeUIConfig{Graphics: true}, true},
+		GuildsTree:  GuildsTreeUIConfig{TreeUIConfig: TreeUIConfig{Graphics: true}, AutoExpandFolders: true},
 		MembersTree: TreeUIConfig{Graphics: true},
 		ScrollBar: ScrollBarUIConfig{
 			SymbolSet:  SymbolSetWrapper{boxDrawing},

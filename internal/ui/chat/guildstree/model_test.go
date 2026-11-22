@@ -406,3 +406,42 @@ func TestModelForum(t *testing.T) {
 		}
 	})
 }
+
+func TestModelHidden(t *testing.T) {
+	s := ningen.FromState(state.NewWithStore("", defaultstore.New()))
+	category := discord.Channel{ID: 10, GuildID: 1, Type: discord.GuildCategory}
+	inMuted := discord.Channel{ID: 11, GuildID: 1, Type: discord.GuildText, ParentID: category.ID}
+	muted := discord.Channel{ID: 12, GuildID: 1, Type: discord.GuildText}
+	plain := discord.Channel{ID: 13, GuildID: 1, Type: discord.GuildText}
+	mutedDM := discord.Channel{ID: 20, Type: discord.DirectMessage}
+	s.State.Call(&gateway.ReadyEvent{UserGuildSettings: []gateway.UserGuildSetting{{
+		GuildID: 1,
+		ChannelOverrides: []gateway.UserChannelOverride{
+			{ChannelID: category.ID, Muted: true},
+			{ChannelID: muted.ID, Muted: true},
+			{ChannelID: mutedDM.ID, Muted: true},
+		},
+	}}})
+
+	for _, hide := range []bool{false, true} {
+		var cfg config.Config
+		cfg.UI.GuildsTree.HideMutedChannels = hide
+		m := Model{cfg: &cfg, state: s}
+		for _, test := range []struct {
+			name    string
+			channel discord.Channel
+			hidden  bool
+		}{
+			{"muted category", category, hide},
+			{"channel of a muted category", inMuted, hide},
+			{"muted channel", muted, hide},
+			{"unmuted channel", plain, false},
+			// A DM is never hidden, as the tree is the only place it is listed with its unread state.
+			{"muted DM", mutedDM, false},
+		} {
+			if got := m.hidden(test.channel); got != test.hidden {
+				t.Errorf("hide_muted_channels=%v, %s: hidden = %v, want %v", hide, test.name, got, test.hidden)
+			}
+		}
+	}
+}

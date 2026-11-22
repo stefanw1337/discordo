@@ -270,7 +270,25 @@ func (m Model) createGuildNode(parent *tree.Node, guild discord.Guild) {
 	m.guildNodes[guild.ID] = guildNode
 }
 
+// hidden reports whether channel is left out of the tree: it is muted, or is a channel of a category that is, and hide_muted_channels is set.
+func (m Model) hidden(channel discord.Channel) bool {
+	if !m.cfg.UI.GuildsTree.HideMutedChannels {
+		return false
+	}
+
+	switch channel.Type {
+	case discord.DirectMessage, discord.GroupDM:
+		return false
+	}
+	muted := m.state.MutedState
+	return muted.Channel(channel.ID) || (channel.ParentID.IsValid() && muted.Channel(channel.ParentID))
+}
+
 func (m Model) createChannelNode(parent *tree.Node, channel discord.Channel) {
+	if m.hidden(channel) {
+		return
+	}
+
 	needsViewPermission := !slices.Contains([]discord.ChannelType{discord.DirectMessage, discord.GroupDM, discord.GuildCategory}, channel.Type)
 	if needsViewPermission && !m.state.HasPermissions(channel.ID, discord.PermissionViewChannel) {
 		return
@@ -598,7 +616,7 @@ func (m Model) createChannelNodes(node *tree.Node, channels []discord.Channel) {
 	// We precompute parent presence once to avoid the O(n^2) category-child scan.
 	hasChildByParentID := make(map[discord.ChannelID]struct{}, len(channels))
 	for _, channel := range channels {
-		if channel.ParentID.IsValid() {
+		if channel.ParentID.IsValid() && !m.hidden(channel) {
 			hasChildByParentID[channel.ParentID] = struct{}{}
 		}
 	}

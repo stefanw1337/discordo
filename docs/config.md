@@ -342,6 +342,13 @@ Default: `true`
 
 Default: `true`
 
+### ui.guilds_tree.hide_muted_channels
+
+Whether channels and categories you muted are left out of the guilds tree, along with the channels of a muted category.
+They can still be opened from the channels picker. The tree is rebuilt with the change when the session reconnects.
+
+Default: `false`
+
 ## ui.members_tree
 
 ### ui.members_tree.graphics
