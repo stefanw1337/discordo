@@ -214,3 +214,12 @@ func TestReceiverPlaysAudio(t *testing.T) {
 		t.Fatal("the audio did not stop with the stream")
 	}
 }
+
+func TestFindPlayer(t *testing.T) {
+	if got := findPlayer(`F:\Discordo\mpv.exe`); got != `F:\Discordo\mpv.exe` {
+		t.Fatalf("a path was changed to %q", got)
+	}
+	if got := findPlayer("no-such-player-here"); got != "no-such-player-here" {
+		t.Fatalf("a player found nowhere was changed to %q", got)
+	}
+}

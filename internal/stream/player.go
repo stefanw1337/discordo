@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -66,7 +68,7 @@ func startPlayer(cfg PlayerConfig, codec, title string) (*player, error) {
 		args = append(args, "-")
 	}
 
-	cmd := exec.Command(cfg.Path, args...)
+	cmd := exec.Command(findPlayer(cfg.Path), args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -113,6 +115,28 @@ func (p *player) stop() {
 			<-p.done
 		}
 	})
+}
+
+// findPlayer returns where the player named path is: path itself if it is a path or is found in PATH, or else the
+// program of that name next to discordo's own, so that mpv unpacked into the same folder is found without setup.
+func findPlayer(path string) string {
+	if filepathBase(path) != path {
+		return path
+	}
+	if _, err := exec.LookPath(path); err == nil {
+		return path
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return path
+	}
+	for _, name := range []string{path, path + ".exe"} {
+		beside := filepath.Join(filepath.Dir(self), name)
+		if info, err := os.Stat(beside); err == nil && !info.IsDir() {
+			return beside
+		}
+	}
+	return path
 }
 
 // filepathBase returns the last element of path, split on either kind of separator, so that a Windows path is
