@@ -8,8 +8,10 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
+	"github.com/ayn2op/tview/column"
 	"github.com/ayn2op/tview/text"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/vt"
 )
 
 // runTask returns what command, a task, sends, or fails if it is not one.
@@ -106,4 +108,28 @@ func TestModelMedia(t *testing.T) {
 			t.Fatal("the image is not media to view")
 		}
 	})
+}
+
+func TestSelectionKeepsImageColors(t *testing.T) {
+	screen, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 4, Y: 2}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+
+	// A half block whose two pixels are its foreground and background.
+	pixel := tcell.StyleDefault.Foreground(tcell.NewRGBColor(255, 0, 0)).Background(tcell.NewRGBColor(0, 0, 255))
+	image := text.Rich(text.Span{Text: "▀", Style: pixel})
+	highlight := tcell.StyleDefault.Background(tcell.NewRGBColor(60, 60, 60))
+	selected{Widget: column.New(unhighlighted{image}, text.New("x")), style: highlight}.Draw(screen, tview.Rectangle{Width: 4, Height: 2})
+
+	if _, style, _ := screen.Get(0, 0); style.GetBackground() != pixel.GetBackground() {
+		t.Fatal("the selection changed the image's pixels")
+	}
+	if _, style, _ := screen.Get(0, 1); style.GetBackground() != highlight.GetBackground() {
+		t.Fatal("the text of the selected message was not highlighted")
+	}
 }

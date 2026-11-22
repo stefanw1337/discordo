@@ -24,6 +24,7 @@ import (
 	"github.com/ayn2op/tview/spacer"
 	"github.com/ayn2op/tview/text"
 	"github.com/ayn2op/tview/viewport"
+	"github.com/gdamore/tcell/v3"
 	"github.com/yuin/goldmark/v2/ast"
 )
 
@@ -128,7 +129,16 @@ func (m Model) listView() viewport.Widget {
 		Style(theme.TrackStyle.Style).
 		ThumbStyle(theme.ThumbStyle.Style)
 	// The model moves the selection itself, so the list is not focused and only takes clicks.
-	l := list.New(m.cursor, len(m.items), m.buildItem).
+	// The selected message is highlighted here rather than by the list, so that its images keep their colors.
+	selectedStyle := m.cfg.Theme.MessagesList.SelectedMessageStyle.Style
+	item := func(index int) tview.Widget {
+		view := m.buildItem(index)
+		if index == m.cursor && selectedStyle != tcell.StyleDefault {
+			return selected{Widget: view, style: selectedStyle}
+		}
+		return view
+	}
+	l := list.New(m.cursor, len(m.items), item).
 		// A group's messages have no spacing between them.
 		Spacing(func(index int) int {
 			if m.items[index].grouped {
@@ -136,7 +146,7 @@ func (m Model) listView() viewport.Widget {
 			}
 			return int(m.cfg.UI.MessagesList.Spacing)
 		}).
-		SelectedStyle(m.cfg.Theme.MessagesList.SelectedMessageStyle.Style).
+		SelectedStyle(tcell.StyleDefault).
 		OnChange(func(cursor int) tview.Msg { return listMsg(cursor) })
 	return viewport.New(rightClickable{l}, m.scrollState).
 		Target(l.Target(m.target)).
@@ -331,7 +341,7 @@ func (m Model) itemView(item *messageItem) tview.Widget {
 	for _, source := range m.previewSources(*message) {
 		if preview, ok := m.images[source.proxy]; ok {
 			// Clicking a preview shows the media at its full size.
-			body = body.Push(clickable{Widget: preview, msg: viewMediaMsg{url: source.url, name: source.name}})
+			body = body.Push(clickable{Widget: unhighlighted{preview}, msg: viewMediaMsg{url: source.url, name: source.name}})
 		}
 	}
 
@@ -351,7 +361,7 @@ func (m Model) itemView(item *messageItem) tview.Widget {
 		var gutter tview.Widget = spacer.New().Width(layout.Fixed(m.avatarWidth))
 		if avatar, ok := m.images[avatarURL(message.Author)]; ok && !item.grouped {
 			if width, _ := avatar.Size(); width != layout.Fixed(0) {
-				gutter = avatar
+				gutter = unhighlighted{avatar}
 			}
 		}
 		view = row.New(gutter, body).Spacing(1).Height(layout.Shrink)
