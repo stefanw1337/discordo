@@ -1051,6 +1051,12 @@ Show the profile of the author of the selected message.
 
 Default: `"P"`
 
+### keybinds.messages_list.open_menu
+
+Show what can be done to the selected message in a menu, as right-clicking it does.
+
+Default: `"m"`
+
 ### keybinds.messages_list.download
 
 Download one of the selected message's attachments.

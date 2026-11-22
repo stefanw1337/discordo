@@ -11,6 +11,8 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/gateway"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/ui/chat/messagemenu"
+	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/tview"
@@ -226,4 +228,16 @@ func TestModelJumpTo(t *testing.T) {
 			t.Fatalf("pending jump = %v, want none", m.pendingJump)
 		}
 	})
+}
+
+func TestModelMessageMenu(t *testing.T) {
+	m := newTestModel(t)
+	*m, _ = m.Update(messageslist.ShowMenuMsg{{Label: "reply", Key: "R"}})
+	if m.overlay != overlayMessageMenu {
+		t.Fatal("the menu did not open")
+	}
+	*m, _ = m.Update(messagemenu.SelectedMsg{})
+	if m.overlay != overlayNone {
+		t.Fatal("picking an action did not close the menu")
+	}
 }

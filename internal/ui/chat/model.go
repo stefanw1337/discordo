@@ -28,6 +28,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/guildstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/memberstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/mentionsinbox"
+	"github.com/ayn2op/discordo/internal/ui/chat/messagemenu"
 	"github.com/ayn2op/discordo/internal/ui/chat/messagesearch"
 	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
@@ -74,6 +75,8 @@ type Model struct {
 	profileCard profilecard.Model
 	// mentionsInbox lists the messages that recently mentioned the user.
 	mentionsInbox mentionsinbox.Model
+	// messageMenu lists what can be done to the selected message.
+	messageMenu messagemenu.Model
 	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
 	pendingJump pendingJump
 
@@ -146,6 +149,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.forumPosts = forumposts.NewModel(cfg, m.state)
 	m.profileCard = profilecard.NewModel(cfg, m.state)
 	m.mentionsInbox = mentionsinbox.NewModel(cfg, m.state)
+	m.messageMenu = messagemenu.NewModel(cfg)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -171,6 +175,7 @@ const (
 	overlayForumPosts
 	overlayProfileCard
 	overlayMentionsInbox
+	overlayMessageMenu
 )
 
 // pendingJump is a message in a channel being opened, to select once the channel loads.
@@ -196,6 +201,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.profileCard.View()
 	case overlayMentionsInbox:
 		return m.mentionsInbox.View()
+	case overlayMessageMenu:
+		return m.messageMenu.View()
 	default:
 		return nil
 	}
@@ -376,6 +383,17 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case mentionsinbox.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
+	case messageslist.ShowMenuMsg:
+		m.messageMenu.SetItems(msg)
+		m.overlay = overlayMessageMenu
+		return m, nil
+	case messagemenu.SelectedMsg:
+		m.overlay = overlayNone
+		m.setFocus(paneMessagesList)
+		return m, m.updatePane(paneMessagesList, msg.Action)
+	case messagemenu.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
 	case messagesearch.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
@@ -505,6 +523,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.profileCard, cmd = m.profileCard.Update(msg)
 	case overlayMentionsInbox:
 		m.mentionsInbox, cmd = m.mentionsInbox.Update(msg)
+	case overlayMessageMenu:
+		m.messageMenu, cmd = m.messageMenu.Update(msg)
 	default:
 		cmd = m.updatePane(m.focused, msg)
 	}

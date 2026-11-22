@@ -177,6 +177,8 @@ type MessagesListKeybinds struct {
 	WhoReacted Keybind `toml:"who_reacted"`
 	// Show the profile of the author of the selected message.
 	OpenProfile Keybind `toml:"open_profile"`
+	// Show what can be done to the selected message in a menu, as right-clicking it does.
+	OpenMenu Keybind `toml:"open_menu"`
 	// Download one of the selected message's attachments.
 	Download Keybind `toml:"download"`
 	// Play, pause or resume the selected voice message.
@@ -383,6 +385,7 @@ func defaultKeybinds() Keybinds {
 			React:         key("react", "a"),
 			WhoReacted:    key("who reacted", "w"),
 			OpenProfile:   key("profile", "P"),
+			OpenMenu:      key("menu", "m"),
 			Download:      key("download", "D"),
 			Play:          key("play", "p"),
 			SeekBackward:  key("seek back", "h", "left"),

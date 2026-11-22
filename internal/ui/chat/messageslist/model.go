@@ -138,7 +138,7 @@ func (m Model) listView() viewport.Widget {
 		}).
 		SelectedStyle(m.cfg.Theme.MessagesList.SelectedMessageStyle.Style).
 		OnChange(func(cursor int) tview.Msg { return listMsg(cursor) })
-	return viewport.New(l, m.scrollState).
+	return viewport.New(rightClickable{l}, m.scrollState).
 		Target(l.Target(m.target)).
 		ScrollBar(bar, cfg.Visibility.ScrollBarVisibility).
 		// Older messages are added above, so the position is kept from the newest, which also keeps the newest in view.
@@ -794,66 +794,16 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		m.clearViews()
 		return m, nil
 	case tview.KeyMsg:
-		keybinds := m.cfg.Keybinds.MessagesList
-		switch {
-		case keybind.Matches(msg, keybinds.Cancel.Keybind):
-			m.clearSelection()
-		case keybind.Matches(msg, keybinds.SelectUp.Keybind):
-			return m, m.selectUp()
-		case keybind.Matches(msg, keybinds.SelectDown.Keybind):
-			return m, m.selectDown()
-		case keybind.Matches(msg, keybinds.SelectTop.Keybind):
-			return m, m.selectTop()
-		case keybind.Matches(msg, keybinds.SelectBottom.Keybind):
-			return m, m.selectBottom()
-		case keybind.Matches(msg, keybinds.SelectReply.Keybind):
-			m.selectReply()
-		case keybind.Matches(msg, keybinds.OpenThread.Keybind):
-			return m, m.openThread()
-		case keybind.Matches(msg, keybinds.YankID.Keybind):
-			return m, m.yankMessageID()
-		case keybind.Matches(msg, keybinds.YankContent.Keybind):
-			return m, m.yankContent()
-		case keybind.Matches(msg, keybinds.YankURL.Keybind):
-			return m, m.yankURL()
-		case keybind.Matches(msg, keybinds.Open.Keybind):
-			return m, m.open()
-		case keybind.Matches(msg, keybinds.OpenInBrowser.Keybind):
-			return m, m.openInBrowser()
-		case keybind.Matches(msg, keybinds.Play.Keybind):
-			if message, ok := m.selectedMessage(); ok && isVoiceMessage(*message) {
-				return m, m.play(message.Attachments[0])
-			}
-		case keybind.Matches(msg, keybinds.SeekBackward.Keybind):
-			return m, m.seek(m.voiceStatus.Position - seekStep)
-		case keybind.Matches(msg, keybinds.SeekForward.Keybind):
-			return m, m.seek(m.voiceStatus.Position + seekStep)
-		case keybind.Matches(msg, keybinds.Download.Keybind):
-			return m, m.download()
-		case keybind.Matches(msg, keybinds.React.Keybind):
-			return m, m.showReactions()
-		case keybind.Matches(msg, keybinds.WhoReacted.Keybind):
-			return m, m.toggleReactors()
-		case keybind.Matches(msg, keybinds.OpenProfile.Keybind):
-			return m, m.showProfile()
-		case keybind.Matches(msg, keybinds.Reply.Keybind):
-			return m, m.reply(false)
-		case keybind.Matches(msg, keybinds.ReplyMention.Keybind):
-			return m, m.reply(true)
-		case keybind.Matches(msg, keybinds.Edit.Keybind):
-			return m, m.editSelectedMessage()
-		case keybind.Matches(msg, keybinds.Search.Keybind):
-			return m, m.search()
-		case keybind.Matches(msg, keybinds.Delete.Keybind, keybinds.DeleteConfirm.Keybind):
-			// A deleted message that was kept has nothing left to delete, and is dropped instead.
-			if m.forgetSelected() {
-				return m, nil
-			}
-			if keybind.Matches(msg, keybinds.Delete.Keybind) {
-				return m, m.deleteSelectedMessage()
-			}
-			return m, m.confirmDelete()
+		return m.runAction(func(keybinds ...keybind.Keybind) bool { return keybind.Matches(msg, keybinds...) })
+	case ActionMsg:
+		return m.runAction(func(keybinds ...keybind.Keybind) bool { return slices.ContainsFunc(keybinds, msg.is) })
+	case menuMsg:
+		if int(msg) < 0 || int(msg) >= len(m.items) {
+			return m, nil
 		}
+		m.cursor, m.target = int(msg), int(msg)
+		m.onRowCursorChanged(m.cursor)
+		return m, m.showMenu()
 	case olderMessagesLoadedMsg:
 		return m, m.prependOlder(msg)
 	case windowLoadedMsg:
@@ -912,6 +862,73 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		if !bottom && m.atBottom() {
 			return m, m.fetchNewerMessages()
 		}
+	}
+	return m, nil
+}
+
+// runAction does what the first keybind that matches calls for, to the selected message or the list.
+func (m Model) runAction(matches func(...keybind.Keybind) bool) (Model, tview.Cmd) {
+	keybinds := m.cfg.Keybinds.MessagesList
+	switch {
+	case matches(keybinds.Cancel.Keybind):
+		m.clearSelection()
+	case matches(keybinds.SelectUp.Keybind):
+		return m, m.selectUp()
+	case matches(keybinds.SelectDown.Keybind):
+		return m, m.selectDown()
+	case matches(keybinds.SelectTop.Keybind):
+		return m, m.selectTop()
+	case matches(keybinds.SelectBottom.Keybind):
+		return m, m.selectBottom()
+	case matches(keybinds.SelectReply.Keybind):
+		m.selectReply()
+	case matches(keybinds.OpenThread.Keybind):
+		return m, m.openThread()
+	case matches(keybinds.YankID.Keybind):
+		return m, m.yankMessageID()
+	case matches(keybinds.YankContent.Keybind):
+		return m, m.yankContent()
+	case matches(keybinds.YankURL.Keybind):
+		return m, m.yankURL()
+	case matches(keybinds.Open.Keybind):
+		return m, m.open()
+	case matches(keybinds.OpenInBrowser.Keybind):
+		return m, m.openInBrowser()
+	case matches(keybinds.Play.Keybind):
+		if message, ok := m.selectedMessage(); ok && isVoiceMessage(*message) {
+			return m, m.play(message.Attachments[0])
+		}
+	case matches(keybinds.SeekBackward.Keybind):
+		return m, m.seek(m.voiceStatus.Position - seekStep)
+	case matches(keybinds.SeekForward.Keybind):
+		return m, m.seek(m.voiceStatus.Position + seekStep)
+	case matches(keybinds.Download.Keybind):
+		return m, m.download()
+	case matches(keybinds.React.Keybind):
+		return m, m.showReactions()
+	case matches(keybinds.WhoReacted.Keybind):
+		return m, m.toggleReactors()
+	case matches(keybinds.OpenProfile.Keybind):
+		return m, m.showProfile()
+	case matches(keybinds.OpenMenu.Keybind):
+		return m, m.showMenu()
+	case matches(keybinds.Reply.Keybind):
+		return m, m.reply(false)
+	case matches(keybinds.ReplyMention.Keybind):
+		return m, m.reply(true)
+	case matches(keybinds.Edit.Keybind):
+		return m, m.editSelectedMessage()
+	case matches(keybinds.Search.Keybind):
+		return m, m.search()
+	case matches(keybinds.Delete.Keybind, keybinds.DeleteConfirm.Keybind):
+		// A deleted message that was kept has nothing left to delete, and is dropped instead.
+		if m.forgetSelected() {
+			return m, nil
+		}
+		if matches(keybinds.Delete.Keybind) {
+			return m, m.deleteSelectedMessage()
+		}
+		return m, m.confirmDelete()
 	}
 	return m, nil
 }
