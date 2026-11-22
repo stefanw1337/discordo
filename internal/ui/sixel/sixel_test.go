@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ayn2op/tview"
 	"github.com/gdamore/tcell/v3"
@@ -219,4 +220,37 @@ func TestScreen(t *testing.T) {
 			t.Fatalf("lines = %v, want 2 rows of 4 markers", lines)
 		}
 	})
+}
+
+func TestEncodeGradient(t *testing.T) {
+	// A photo's gradients keep their colors, close enough that no pattern shows, which a fixed palette did not.
+	img := image.NewNRGBA(image.Rect(0, 0, 480, 270))
+	for y := range 270 {
+		for x := range 480 {
+			img.SetNRGBA(x, y, color.NRGBA{uint8(x * 255 / 479), uint8(y * 255 / 269), 90, 255})
+		}
+	}
+	start := time.Now()
+	_, _, pixels, palette := decode(t, Encode(img, 480, 270, 0, 270))
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("took %v", elapsed)
+	}
+	var total int
+	for y, row := range pixels {
+		for x, c := range row {
+			want := img.NRGBAAt(x, y)
+			got := palette[c]
+			total += abs(got[0]-percent(want.R)) + abs(got[1]-percent(want.G)) + abs(got[2]-percent(want.B))
+		}
+	}
+	if mean := float64(total) / (480 * 270 * 3); mean > 2 {
+		t.Fatalf("mean error = %.2f%%, want at most 2%%", mean)
+	}
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

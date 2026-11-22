@@ -10,73 +10,58 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"slices"
 	"strconv"
+
+	xdraw "golang.org/x/image/draw"
 )
 
-// The palette is a 6×6×6 color cube.
-const (
-	levels      = 6
-	paletteSize = levels * levels * levels
-)
-
-// bayer is a 4×4 ordered dither, which hides the steps between the colors of the palette.
-var bayer = [4][4]int{
-	{0, 8, 2, 10},
-	{12, 4, 14, 6},
-	{3, 11, 1, 9},
-	{15, 7, 13, 5},
-}
+// maxColors is how many colors an image is given, the most sixel terminals keep at once.
+const maxColors = 256
 
 // minAlpha is how opaque a pixel must be to be drawn. Those less opaque are left transparent.
 const minAlpha = 128
 
 // Encode returns img as a sixel image of width by height pixels, its rows from top to bottom of that height.
+//
+// The image is given a palette of its own colors, chosen by median cut, and dithered to it by error diffusion, which
+// keeps gradients smooth without the repeating pattern of an ordered dither.
 func Encode(img image.Image, width, height, top, bottom int) []byte {
 	if width <= 0 || height <= 0 || bottom <= top {
 		return nil
 	}
 	rows := bottom - top
-	bounds := img.Bounds()
+	pixels := scale(img, width, height, top, bottom)
 
-	// Each pixel is scaled to the nearest of the source and given the index of its color in the palette, or -1.
-	indices := make([]int16, width*rows)
-	used := make([]bool, paletteSize)
-	for y := range rows {
-		sy := bounds.Min.Y + (top+y)*bounds.Dy()/height
-		for x := range width {
-			sx := bounds.Min.X + x*bounds.Dx()/width
-			c := color.NRGBAModel.Convert(img.At(sx, sy)).(color.NRGBA)
-			if c.A < minAlpha {
-				indices[y*width+x] = -1
-				continue
-			}
-			threshold := bayer[(top+y)%4][x%4]
-			i := quantize(c.R, threshold)*levels*levels + quantize(c.G, threshold)*levels + quantize(c.B, threshold)
-			indices[y*width+x] = int16(i)
-			used[i] = true
+	// Transparent pixels are left out of the palette and the image.
+	opaque := make([]bool, width*rows)
+	var colors []color.NRGBA
+	for i := range opaque {
+		c := pixels.NRGBAAt(i%width, i/width)
+		if c.A >= minAlpha {
+			opaque[i] = true
+			colors = append(colors, c)
 		}
 	}
+	palette := medianCut(colors, maxColors)
+
+	indices := make([]int16, width*rows)
+	dither(pixels, opaque, palette, indices)
 
 	var out bytes.Buffer
 	// P2=1: pixels that are not set keep what is behind them.
 	out.WriteString("\x1bP0;1;0q")
 	out.WriteString(`"1;1;` + strconv.Itoa(width) + ";" + strconv.Itoa(rows))
-	for i, ok := range used {
-		if !ok {
-			continue
-		}
-		r, g, b := paletteColor(i)
-		out.WriteString("#" + strconv.Itoa(i) + ";2;" + strconv.Itoa(r) + ";" + strconv.Itoa(g) + ";" + strconv.Itoa(b))
+	for i, c := range palette {
+		out.WriteString("#" + strconv.Itoa(i) + ";2;" + strconv.Itoa(percent(c.R)) + ";" + strconv.Itoa(percent(c.G)) + ";" +
+			strconv.Itoa(percent(c.B)))
 	}
 
 	// Each band is six rows of pixels, drawn a color at a time: a sixel's six bits are the rows it sets.
 	band := make([]byte, width)
 	for y0 := 0; y0 < rows; y0 += 6 {
 		first := true
-		for i, ok := range used {
-			if !ok {
-				continue
-			}
+		for i := range palette {
 			any := false
 			for x := range width {
 				var bits byte
@@ -105,16 +90,171 @@ func Encode(img image.Image, width, height, top, bottom int) []byte {
 	return out.Bytes()
 }
 
-// quantize returns the level of the palette nearest to value, nudged by the dither's threshold, from 0 to 15.
-func quantize(value uint8, threshold int) int {
-	step := 255.0 / float64(levels-1)
-	level := (float64(value) + (float64(threshold)/16-0.5)*step) / step
-	return max(0, min(levels-1, int(level+0.5)))
+// scale returns rows top to bottom of img scaled to width by height: smoothly when it is made smaller, which
+// sampling the nearest pixel would make grainy, and to the nearest pixel when it is made larger, which keeps edges.
+func scale(img image.Image, width, height, top, bottom int) *image.NRGBA {
+	bounds := img.Bounds()
+	dst := image.NewNRGBA(image.Rect(0, 0, width, bottom-top))
+	if bounds.Empty() {
+		return dst
+	}
+	full := image.Rect(0, -top, width, height-top)
+	var scaler xdraw.Scaler = xdraw.NearestNeighbor
+	if bounds.Dx() > width || bounds.Dy() > height {
+		scaler = xdraw.CatmullRom
+	}
+	scaler.Scale(dst, full, img, bounds, xdraw.Src, nil)
+	return dst
 }
 
-// paletteColor returns the color of the palette at i, in percent as sixels give colors.
-func paletteColor(i int) (r, g, b int) {
-	return (i / (levels * levels)) * 100 / (levels - 1), (i / levels % levels) * 100 / (levels - 1), (i % levels) * 100 / (levels - 1)
+// percent returns value, of 255, in percent, as sixels give colors.
+func percent(value uint8) int {
+	return (int(value)*100 + 127) / 255
+}
+
+// box is a set of colors that median cut splits.
+type box []color.NRGBA
+
+// span returns the channel, 0 to 2 for red, green and blue, whose values in b are most spread, and how far.
+func (b box) span() (channel int, spread int) {
+	var lo, hi [3]uint8
+	lo = [3]uint8{255, 255, 255}
+	for _, c := range b {
+		for i, v := range [3]uint8{c.R, c.G, c.B} {
+			lo[i], hi[i] = min(lo[i], v), max(hi[i], v)
+		}
+	}
+	for i := range 3 {
+		if d := int(hi[i]) - int(lo[i]); d > spread {
+			channel, spread = i, d
+		}
+	}
+	return channel, spread
+}
+
+// average returns the mean color of b.
+func (b box) average() color.NRGBA {
+	var r, g, bl int
+	for _, c := range b {
+		r, g, bl = r+int(c.R), g+int(c.G), bl+int(c.B)
+	}
+	n := len(b)
+	return color.NRGBA{uint8((r + n/2) / n), uint8((g + n/2) / n), uint8((bl + n/2) / n), 255}
+}
+
+// medianCut returns a palette of at most n colors for colors: the box of them most spread is split at its median
+// until there are n, and each box gives its mean.
+func medianCut(colors []color.NRGBA, n int) []color.NRGBA {
+	if len(colors) == 0 {
+		return nil
+	}
+	boxes := []box{box(colors)}
+	for len(boxes) < n {
+		best, bestSpread, bestChannel := -1, 0, 0
+		for i, b := range boxes {
+			if len(b) < 2 {
+				continue
+			}
+			// Boxes of many pixels are split first among those as spread, as they cover more of the image.
+			channel, spread := b.span()
+			if weighted := spread * intSqrt(len(b)); weighted > bestSpread {
+				best, bestSpread, bestChannel = i, weighted, channel
+			}
+		}
+		if best < 0 {
+			break
+		}
+		b := boxes[best]
+		slices.SortFunc(b, func(x, y color.NRGBA) int {
+			return int(channelOf(x, bestChannel)) - int(channelOf(y, bestChannel))
+		})
+		mid := len(b) / 2
+		boxes[best] = b[:mid]
+		boxes = append(boxes, b[mid:])
+	}
+
+	palette := make([]color.NRGBA, 0, len(boxes))
+	seen := make(map[color.NRGBA]bool, len(boxes))
+	for _, b := range boxes {
+		c := b.average()
+		if !seen[c] {
+			seen[c] = true
+			palette = append(palette, c)
+		}
+	}
+	return palette
+}
+
+func channelOf(c color.NRGBA, channel int) uint8 {
+	switch channel {
+	case 0:
+		return c.R
+	case 1:
+		return c.G
+	}
+	return c.B
+}
+
+// intSqrt returns the square root of n, rounded down.
+func intSqrt(n int) int {
+	r := 0
+	for (r+1)*(r+1) <= n {
+		r++
+	}
+	return r
+}
+
+// dither sets indices to the palette color of each opaque pixel, carrying each pixel's error to its neighbors
+// (Floyd–Steinberg), and to -1 for the others.
+func dither(pixels *image.NRGBA, opaque []bool, palette []color.NRGBA, indices []int16) {
+	width, rows := pixels.Rect.Dx(), pixels.Rect.Dy()
+	// errs holds the error carried to this row and the next, in a sixteenth of a level.
+	cur, next := make([][3]int, width+2), make([][3]int, width+2)
+	cache := make(map[[3]uint8]int16)
+	for y := range rows {
+		for x := range width {
+			i := y*width + x
+			if !opaque[i] || len(palette) == 0 {
+				indices[i] = -1
+				continue
+			}
+			c := pixels.NRGBAAt(x, y)
+			var want [3]int
+			for ch, v := range [3]uint8{c.R, c.G, c.B} {
+				want[ch] = max(0, min(255, int(v)+cur[x+1][ch]/16))
+			}
+			key := [3]uint8{uint8(want[0]), uint8(want[1]), uint8(want[2])}
+			index, ok := cache[key]
+			if !ok {
+				index = nearest(palette, key)
+				cache[key] = index
+			}
+			indices[i] = index
+			got := palette[index]
+			for ch, v := range [3]uint8{got.R, got.G, got.B} {
+				e := want[ch] - int(v)
+				cur[x+2][ch] += e * 7
+				next[x][ch] += e * 3
+				next[x+1][ch] += e * 5
+				next[x+2][ch] += e
+			}
+		}
+		cur, next = next, cur
+		clear(next)
+	}
+}
+
+// nearest returns the index of the color of palette nearest to c.
+func nearest(palette []color.NRGBA, c [3]uint8) int16 {
+	best, bestDistance := 0, int(^uint(0)>>1)
+	for i, p := range palette {
+		dr, dg, db := int(p.R)-int(c[0]), int(p.G)-int(c[1]), int(p.B)-int(c[2])
+		// Weighted as the eye sees differences in each.
+		if d := 2*dr*dr + 4*dg*dg + 3*db*db; d < bestDistance {
+			best, bestDistance = i, d
+		}
+	}
+	return int16(best)
 }
 
 // writeRuns writes a band of sixels, each the bits it sets, with runs of the same one shortened as "!count".
