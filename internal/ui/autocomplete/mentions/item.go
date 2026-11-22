@@ -15,7 +15,6 @@ import (
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/text"
 	"github.com/gdamore/tcell/v3"
 	"github.com/sahilm/fuzzy"
@@ -39,7 +38,7 @@ type mention struct {
 
 func (m mention) Insert() string { return m.insert }
 
-func (m mention) Line(images map[discord.URL]tviewimage.Widget) []text.Span {
+func (m mention) Line(images map[discord.URL]images.Widget) []text.Span {
 	line := []text.Span{{Text: m.name, Style: m.style}}
 	if image, ok := images[m.avatar]; ok {
 		if lines := image.Lines(); len(lines) > 0 {

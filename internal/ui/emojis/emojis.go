@@ -2,6 +2,7 @@
 package emojis
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"iter"
 	"slices"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/ayn2op/discordo/pkg/discordemoji"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/text"
 )
 
@@ -40,7 +40,7 @@ func All(s *ningen.State, gID discord.GuildID) iter.Seq2[string, discord.Emoji] 
 const separator = " "
 
 // Line returns emoji as drawn under name: a custom one in style after its image, if images has it, and a Unicode one before name.
-func Line(emoji discord.Emoji, name string, style tview.Style, images map[discord.URL]tviewimage.Widget) []text.Span {
+func Line(emoji discord.Emoji, name string, style tview.Style, images map[discord.URL]images.Widget) []text.Span {
 	if emoji.IsUnicode() {
 		return []text.Span{{Text: emoji.Name + separator + name}}
 	}

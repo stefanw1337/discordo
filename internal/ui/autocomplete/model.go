@@ -7,7 +7,6 @@ import (
 	"github.com/ayn2op/discordo/internal/ui"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/tview"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/layout"
 	"github.com/ayn2op/tview/list"
 	"github.com/ayn2op/tview/scrollbar"
@@ -22,7 +21,7 @@ type Model struct {
 	title string
 	items []Item
 	// images are the chat model's, which loads them, by URL.
-	images      map[discord.URL]tviewimage.Widget
+	images      map[discord.URL]images.Widget
 	cursor      int
 	scrollState viewport.ScrollState
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/chat/reactionspicker"
 	"github.com/ayn2op/discordo/internal/ui/images"
+	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/backdrop"
@@ -91,8 +92,10 @@ type Model struct {
 	typers map[discord.UserID]time.Time
 
 	// images are shared by the panes.
-	images map[discord.URL]tviewimage.Widget
+	images map[discord.URL]images.Widget
 	kitty  bool
+	// sixel reports whether images are drawn with sixels, when the terminal shows them and kitty's graphics are not.
+	sixel bool
 	// kittyImages counts the images sent to the terminal.
 	kittyImages int
 	// Zero if the terminal does not report its cell size.
@@ -104,7 +107,7 @@ type Model struct {
 func NewModel(cfg *config.Config, token string) Model {
 	m := Model{
 		typers: make(map[discord.UserID]time.Time),
-		images: make(map[discord.URL]tviewimage.Widget),
+		images: make(map[discord.URL]images.Widget),
 
 		cfg: cfg,
 	}
@@ -308,11 +311,21 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		if cols > 0 && rows > 0 && width > 0 && height > 0 {
 			m.cellWidth, m.cellHeight = uint(width/cols), uint(height/rows)
 		}
-		return m, m.reloadImages(cell)
+		var request tview.Cmd
+		if m.sixel && width == 0 {
+			request = requestPixelSize
+		}
+		return m, cmd.Batch{request, m.reloadImages(cell)}
 	case tview.TerminalInfoMsg:
 		cell := m.imageCell()
 		m.kitty = m.isKitty(msg.Name)
-		return m, m.reloadImages(cell)
+		m.sixel = m.isSixel(msg.Name)
+		sixel.SetEnabled(m.sixel)
+		var request tview.Cmd
+		if m.sixel && m.cellWidth == 0 {
+			request = requestPixelSize
+		}
+		return m, cmd.Batch{request, m.reloadImages(cell)}
 	case images.RequestedMsg:
 		command := m.loadImages(msg)
 		return m, cmd.Batch{command, m.sendImages()}
@@ -323,10 +336,10 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		}
 
 		image, command := msg.Image, tview.Cmd(nil)
-		if m.kitty {
+		if widget, ok := image.(tviewimage.Widget); ok && m.kitty {
 			m.kittyImages++
-			image = image.Kitty(m.kittyImages%maxKittyImages + 1).Compressor(newPooledCompressor)
-			command = image.Transmit()
+			widget = widget.Kitty(m.kittyImages%maxKittyImages + 1).Compressor(newPooledCompressor)
+			image, command = widget, widget.Transmit()
 		}
 
 		m.images[msg.URL] = image

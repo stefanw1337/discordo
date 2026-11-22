@@ -1,6 +1,7 @@
 package messageslist
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/tview"
 	"github.com/gdamore/tcell/v3"
 )
@@ -24,12 +25,21 @@ type selectionScreen struct {
 	style tview.Style
 }
 
+// merge returns style with the selection's merged into it, unless it marks where a sixel image goes, which it
+// would no longer tell.
+func (s *selectionScreen) merge(style tview.Style) tview.Style {
+	if sixel.IsMarker(style) {
+		return style
+	}
+	return tview.MergeStyle(s.style, style)
+}
+
 func (s *selectionScreen) SetContent(x, y int, primary rune, combining []rune, style tview.Style) {
-	s.Screen.SetContent(x, y, primary, combining, tview.MergeStyle(s.style, style))
+	s.Screen.SetContent(x, y, primary, combining, s.merge(style))
 }
 
 func (s *selectionScreen) Put(x, y int, str string, style tview.Style) (string, int) {
-	return s.Screen.Put(x, y, str, tview.MergeStyle(s.style, style))
+	return s.Screen.Put(x, y, str, s.merge(style))
 }
 
 func (s *selectionScreen) FillArea(x, y, width, height int, r rune, style tview.Style) {
@@ -41,7 +51,7 @@ func (s *selectionScreen) PutStr(x, y int, str string) {
 }
 
 func (s *selectionScreen) PutStrStyled(x, y int, str string, style tview.Style) {
-	s.Screen.PutStrStyled(x, y, str, tview.MergeStyle(s.style, style))
+	s.Screen.PutStrStyled(x, y, str, s.merge(style))
 }
 
 // unhighlighted is an image, drawn in its own colors even in the selected message: half blocks are two pixels a

@@ -185,7 +185,9 @@ type (
 		// Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, and attachments show only the file name. The link still opens the whole URL.
 		ShortenFileLinks bool `toml:"shorten_file_links"`
 
-		// How avatars and attachment previews are drawn: "auto", "kitty" or "halfblocks".
+		// How avatars, attachment previews and custom emoji are drawn: "auto", "kitty", "sixel" or "halfblocks".
+		// "auto" uses kitty's graphics in kitty, Ghostty and Rio, sixels in Windows Terminal, WezTerm, foot, mintty
+		// and Konsole, and half blocks elsewhere.
 		ImageProtocol string `toml:"image_protocol"`
 
 		Attachments AttachmentsUIConfig `toml:"attachments"`

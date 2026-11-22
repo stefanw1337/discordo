@@ -2,6 +2,7 @@ package messageslist
 
 import (
 	"encoding/json"
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"image"
 	"path/filepath"
 	"slices"
@@ -122,7 +123,7 @@ func TestModelBuildItem(t *testing.T) {
 
 		// The avatar is 2 rows, below the row of a reply.
 		avatar := tviewimage.New(image.NewAlpha(image.Rect(0, 0, 4, 4))).Width(4).CellSize(1, 2)
-		ml.images = map[discord.URL]tviewimage.Widget{avatarURL(discord.User{}): avatar}
+		ml.images = map[discord.URL]images.Widget{avatarURL(discord.User{}): avatar}
 		for _, test := range []struct {
 			name        string
 			messageType discord.MessageType
@@ -487,7 +488,7 @@ func TestModelReactionsView(t *testing.T) {
 		}
 	})
 	t.Run("emoji image", func(t *testing.T) {
-		ml.images = map[discord.URL]tviewimage.Widget{emojis.URLFromID(custom.ID): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
+		ml.images = map[discord.URL]images.Widget{emojis.URLFromID(custom.ID): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
 		// The blank image takes two cells before the count.
 		if got := draw(); got != "ok 2 •    1" {
 			t.Fatalf("reactions = %q", got)

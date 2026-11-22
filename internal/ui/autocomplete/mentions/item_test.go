@@ -1,6 +1,7 @@
 package mentions
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"image"
 	"path/filepath"
 	"slices"
@@ -68,7 +69,7 @@ func loadItems(t *testing.T, cfg *config.Config, s *ningen.State, channel *disco
 func TestMentionLine(t *testing.T) {
 	loaded := mention{name: "ann", avatar: "ann.png"}
 	// Only the avatar of loaded is loaded.
-	images := map[discord.URL]tviewimage.Widget{loaded.avatar: tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
+	images := map[discord.URL]images.Widget{loaded.avatar: tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
 	for _, test := range []struct {
 		name    string
 		mention mention

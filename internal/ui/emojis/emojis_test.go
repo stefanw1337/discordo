@@ -1,6 +1,7 @@
 package emojis
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"image"
 	"slices"
 	"testing"
@@ -26,7 +27,7 @@ func TestAll(t *testing.T) {
 }
 
 func TestLine(t *testing.T) {
-	images := map[discord.URL]tviewimage.Widget{URLFromID(1): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
+	images := map[discord.URL]images.Widget{URLFromID(1): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
 	for _, test := range []struct {
 		name  string
 		emoji discord.Emoji

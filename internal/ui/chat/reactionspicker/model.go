@@ -11,7 +11,6 @@ import (
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/picker"
 	"github.com/ayn2op/tview/text"
 )
@@ -22,7 +21,7 @@ type Model struct {
 	state *ningen.State
 	// reactions are those of the items, and images the chat model's, which loads them, by URL.
 	reactions []reaction
-	images    map[discord.URL]tviewimage.Widget
+	images    map[discord.URL]images.Widget
 	// channelID and messageID are of the message reacted to.
 	channelID discord.ChannelID
 	messageID discord.MessageID

@@ -9,6 +9,7 @@ import (
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/discordo/internal/logger"
 	"github.com/ayn2op/discordo/internal/ui/root"
+	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/tview"
 	"github.com/gdamore/tcell/v3"
 )
@@ -59,5 +60,6 @@ func Run() error {
 		screen.EnableFocus()
 	}
 
-	return tview.NewApplication(root.NewModel(cfg), tview.WithScreen(screen)).Run()
+	// Images are written over the frames it shows with sixels, in terminals that show them.
+	return tview.NewApplication(root.NewModel(cfg), tview.WithScreen(sixel.NewScreen(screen))).Run()
 }

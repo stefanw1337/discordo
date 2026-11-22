@@ -20,7 +20,6 @@ import (
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/column"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/keybind"
 	"github.com/ayn2op/tview/layout"
 	"github.com/ayn2op/tview/row"
@@ -45,7 +44,7 @@ type Model struct {
 	profile *Profile
 	err     error
 	// images are the chat model's, which loads them, by URL.
-	images map[discord.URL]tviewimage.Widget
+	images map[discord.URL]images.Widget
 	// request numbers the profiles asked for, so that the answer for one replaced by another is dropped.
 	request int
 }

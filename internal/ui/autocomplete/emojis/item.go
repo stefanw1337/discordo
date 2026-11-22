@@ -10,7 +10,6 @@ import (
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/text"
 	"github.com/sahilm/fuzzy"
 )
@@ -28,7 +27,7 @@ type item struct {
 
 func (i item) Insert() string { return i.emoji.String() }
 
-func (i item) Line(images map[discord.URL]tviewimage.Widget) []text.Span {
+func (i item) Line(images map[discord.URL]images.Widget) []text.Span {
 	if !i.preview {
 		images = nil
 	}

@@ -5,7 +5,9 @@ import (
 	"image"
 
 	"github.com/ayn2op/arikawa/v3/discord"
+	"github.com/ayn2op/tview"
 	tviewimage "github.com/ayn2op/tview/image"
+	"github.com/ayn2op/tview/text"
 )
 
 // RequestedMsg asks for images: Squares by rows tall, Previews by size in pixels.
@@ -22,13 +24,22 @@ type Fit struct {
 	MaxCols, MaxRows uint
 }
 
+// Widget is an image to draw: a widget of its own, or lines of text within other text, as custom emoji are.
+// It is drawn with half blocks, kitty's graphics or sixels, as the terminal can.
+type Widget interface {
+	tview.Widget
+	Lines() [][]text.Span
+}
+
+var _ Widget = tviewimage.Widget{}
+
 // ChangedMsg is every image by URL, blank while it loads, replacing the images before.
-type ChangedMsg map[discord.URL]tviewimage.Widget
+type ChangedMsg map[discord.URL]Widget
 
 // LoadedMsg is an image that finished loading, or an empty one if it failed.
 type LoadedMsg struct {
 	URL   discord.URL
-	Image tviewimage.Widget
+	Image Widget
 	// Cell is the size of a cell in image pixels that the image was sized for.
 	Cell image.Point
 }

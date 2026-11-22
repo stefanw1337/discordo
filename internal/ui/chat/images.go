@@ -11,12 +11,15 @@ import (
 	"log/slog"
 	"maps"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/discordo/internal/ui/images"
+	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	tviewimage "github.com/ayn2op/tview/image"
@@ -58,13 +61,24 @@ var placeholderTerminals = []string{"kitty", "ghostty", "Rio"}
 // imageCell returns the size of a cell in image pixels.
 func (m Model) imageCell() image.Point {
 	switch {
-	case !m.kitty:
+	case !m.kitty && !m.sixel:
 		return image.Pt(1, 2)
+	case (m.cellWidth == 0 || m.cellHeight == 0) && m.sixel:
+		// Sixels are drawn at their size in pixels, so one too large for its cells would spill out of them: until
+		// the terminal tells, cells are taken to be as small as they usually are.
+		return image.Pt(sixelPixels, sixelPixels*2)
 	case m.cellWidth == 0 || m.cellHeight == 0:
 		return image.Pt(kittyPixels, kittyPixels*2)
 	}
 	return image.Pt(int(m.cellWidth), int(m.cellHeight))
 }
+
+// sixelPixels is the cell width assumed for sixels when the terminal does not report it.
+const sixelPixels = 8
+
+// requestPixelSize asks the terminal for the size of its text area in pixels (XTWINOPS 14), which tcell reads as a
+// resize, as Windows' console does not tell it.
+var requestPixelSize tview.Cmd = cmd.WriteRaw("\x1b[14t")
 
 // reloadImages loads the shown images again if the cell size is no longer cell, as they were sized for it.
 func (m *Model) reloadImages(cell image.Point) tview.Cmd {
@@ -79,7 +93,9 @@ func (m *Model) reloadImages(cell image.Point) tview.Cmd {
 func (m *Model) clearImages() tview.Cmd {
 	var cmds []tview.Cmd
 	for _, image := range m.images {
-		cmds = append(cmds, image.Delete())
+		if kitty, ok := image.(tviewimage.Widget); ok {
+			cmds = append(cmds, kitty.Delete())
+		}
 	}
 
 	clear(m.images)
@@ -102,8 +118,8 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 	for url, rows := range msg.Squares {
 		cols := squareCols(rows, cell)
 		bounds := image.Rect(0, 0, int(cols*cellWidth), int(cols*cellWidth))
-		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) tviewimage.Widget {
-			return tviewimage.New(square(img)).Width(int(cols)).CellSize(int(cellWidth), int(cellHeight))
+		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) images.Widget {
+			return m.newImage(square(img), int(cols), int(cellWidth), int(cellHeight))
 		}))
 	}
 
@@ -119,16 +135,25 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, fit.MaxCols, fit.MaxRows)
 		width := min(uint(size.X), uint(cols)*cellWidth)
 		bounds := image.Rect(0, 0, int(width), int(uint(size.Y)*width/uint(size.X)))
-		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) tviewimage.Widget {
-			return tviewimage.New(img).Width(cols).CellSize(int(cellWidth), int(cellHeight))
+		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) images.Widget {
+			return m.newImage(img, cols, int(cellWidth), int(cellHeight))
 		}))
 	}
 
 	return cmd.Batch(cmds)
 }
 
+// newImage returns the widget that draws img cols wide in cells of cellWidth by cellHeight pixels: with sixels in a
+// terminal that shows them, and otherwise with kitty's graphics or half blocks.
+func (m *Model) newImage(img image.Image, cols, cellWidth, cellHeight int) images.Widget {
+	if m.sixel {
+		return sixel.New(img, cols, cellWidth, cellHeight)
+	}
+	return tviewimage.New(img).Width(cols).CellSize(cellWidth, cellHeight)
+}
+
 // A blank image holds the place until it loads, so nothing shifts.
-func (m *Model) loadImage(url discord.URL, bounds image.Rectangle, widget func(image.Image) tviewimage.Widget) tview.Cmd {
+func (m *Model) loadImage(url discord.URL, bounds image.Rectangle, widget func(image.Image) images.Widget) tview.Cmd {
 	if _, ok := m.images[url]; ok {
 		return nil
 	}
@@ -171,10 +196,36 @@ func (m Model) isKitty(name string) bool {
 	switch m.cfg.UI.MessagesList.ImageProtocol {
 	case "kitty":
 		return true
-	case "halfblocks":
+	case "halfblocks", "sixel":
 		return false
 	}
 	return slices.Contains(placeholderTerminals, name)
+}
+
+// sixelTerminals show sixels, as far as their name, which the terminal reports, tells.
+var sixelTerminals = []string{"WezTerm", "foot", "mintty", "mlterm", "contour", "konsole", "Konsole", "iTerm2", "xterm"}
+
+// isSixel reports whether images are drawn with sixels: when set, or for a terminal that shows them and has no kitty
+// placeholders. Windows Terminal does not report its name, but sets WT_SESSION.
+func (m Model) isSixel(name string) bool {
+	switch m.cfg.UI.MessagesList.ImageProtocol {
+	case "sixel":
+		return true
+	case "kitty", "halfblocks":
+		return false
+	}
+	if m.isKitty(name) {
+		return false
+	}
+	if os.Getenv("WT_SESSION") != "" {
+		return true
+	}
+	for _, terminal := range sixelTerminals {
+		if strings.Contains(name, terminal) {
+			return true
+		}
+	}
+	return false
 }
 
 // squareCols returns the width in cells of a square image rows tall.

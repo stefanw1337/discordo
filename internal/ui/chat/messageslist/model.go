@@ -15,7 +15,6 @@ import (
 	"github.com/ayn2op/tview/box"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/column"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/keybind"
 	"github.com/ayn2op/tview/layout"
 	"github.com/ayn2op/tview/list"
@@ -56,7 +55,7 @@ type Model struct {
 
 	renderer *markdown.Renderer
 	// images are the chat model's, which loads them, by URL.
-	images map[discord.URL]tviewimage.Widget
+	images map[discord.URL]images.Widget
 	// focused, footer and avatarWidth, in cells, are set by the chat model, which keeps what they follow from.
 	focused     bool
 	footer      string

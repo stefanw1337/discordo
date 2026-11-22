@@ -66,7 +66,7 @@ func TestModelEmojiLine(t *testing.T) {
 		}
 	})
 	t.Run("loaded", func(t *testing.T) {
-		ml.images = map[discord.URL]tviewimage.Widget{emojis.URLFromID(5): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
+		ml.images = map[discord.URL]images.Widget{emojis.URLFromID(5): tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2))).Width(2)}
 		if got := ml.emojiLine("5"); len(got) != 2 {
 			t.Fatalf("line = %v, want the two cells of the emoji", got)
 		}

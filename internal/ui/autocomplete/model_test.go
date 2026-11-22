@@ -1,10 +1,10 @@
 package autocomplete
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"testing"
 
 	"github.com/ayn2op/arikawa/v3/discord"
-	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/text"
 )
 
@@ -13,7 +13,7 @@ type item string
 
 func (i item) Insert() string { return string(i) }
 
-func (i item) Line(map[discord.URL]tviewimage.Widget) []text.Span {
+func (i item) Line(map[discord.URL]images.Widget) []text.Span {
 	return []text.Span{{Text: string(i)}}
 }
 
