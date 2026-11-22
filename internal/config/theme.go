@@ -189,11 +189,13 @@ type (
 	}
 
 	MessagesListThemeConfig struct {
-		AuthorStyle      Style `toml:"author_style"`
-		MentionStyle     Style `toml:"mention_style"`
-		EmojiStyle       Style `toml:"emoji_style"`
-		URLStyle         Style `toml:"url_style"`
-		AttachmentStyle  Style `toml:"attachment_style"`
+		AuthorStyle     Style `toml:"author_style"`
+		MentionStyle    Style `toml:"mention_style"`
+		EmojiStyle      Style `toml:"emoji_style"`
+		URLStyle        Style `toml:"url_style"`
+		AttachmentStyle Style `toml:"attachment_style"`
+		// The style of the labels that stand for stickers, as in `(sticker: wave)`.
+		StickerStyle     Style `toml:"sticker_style"`
 		ReactionStyle    Style `toml:"reaction_style"`
 		OwnReactionStyle Style `toml:"own_reaction_style"`
 
@@ -313,6 +315,7 @@ func defaultTheme() ThemeConfig {
 			EmojiStyle:           Style{plain.Foreground(color.Green)},
 			URLStyle:             Style{blue},
 			AttachmentStyle:      Style{plain.Foreground(color.Yellow)},
+			StickerStyle:         Style{plain.Foreground(color.Green)},
 			ReactionStyle:        dim,
 			OwnReactionStyle:     Style{bold},
 			SelectedMessageStyle: Style{plain.Reverse(true)},

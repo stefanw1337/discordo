@@ -312,6 +312,30 @@ func (m Model) drawSnapshotContent(builder *markdown.Builder, parent discord.Mes
 		GuildID:         parent.GuildID,
 	}
 	m.drawContent(builder, message, nil, baseStyle)
+	m.drawStickers(builder, message.Stickers, baseStyle, false)
+}
+
+// drawStickers writes a label for each sticker, as in `(sticker: wave)`. inline keeps them on the current line, as in a reply; otherwise each starts a line.
+func (m Model) drawStickers(builder *markdown.Builder, stickers []discord.StickerItem, baseStyle tview.Style, inline bool) {
+	style := tview.MergeStyle(baseStyle, m.cfg.Theme.MessagesList.StickerStyle.Style)
+	for _, sticker := range stickers {
+		if inline {
+			if !builder.LineEmpty() {
+				builder.Write(" ", baseStyle)
+			}
+		} else if !builder.LineEmpty() {
+			builder.NewLine()
+		}
+		builder.Write(stickerLabel(sticker), style)
+	}
+}
+
+// stickerLabel returns the text that stands for sticker.
+func stickerLabel(sticker discord.StickerItem) string {
+	if sticker.Name == "" {
+		return "(sticker)"
+	}
+	return "(sticker: " + sticker.Name + ")"
 }
 
 func (m Model) drawDefaultMessage(builder *markdown.Builder, message discord.Message, root ast.Node, baseStyle tview.Style, grouped bool) {
@@ -319,8 +343,18 @@ func (m Model) drawDefaultMessage(builder *markdown.Builder, message discord.Mes
 		m.drawEditHistory(builder, message, baseStyle)
 		m.drawContent(builder, message, root, baseStyle)
 	}
-	if message.Content == "" && len(m.log.history(message.ID)) == 0 {
+	switch {
+	case message.Content == "" && len(m.log.history(message.ID)) == 0 && len(message.Stickers) > 0:
+		// A message of only stickers shows them where its content would be.
+		content = func() { m.drawStickers(builder, message.Stickers, baseStyle, true) }
+	case message.Content == "" && len(m.log.history(message.ID)) == 0:
 		content = nil
+	case len(message.Stickers) > 0:
+		text := content
+		content = func() {
+			text()
+			m.drawStickers(builder, message.Stickers, baseStyle, false)
+		}
 	}
 
 	m.drawLayout(builder, message, baseStyle, grouped, content)
@@ -366,6 +400,7 @@ func (m Model) drawReply(builder *markdown.Builder, message discord.Message, bas
 		m.drawAuthor(builder, *ref, dimStyle)
 		builder.Write(" ", baseStyle)
 		m.drawContent(builder, *ref, nil, dimStyle)
+		m.drawStickers(builder, ref.Stickers, dimStyle, true)
 	} else {
 		builder.Write("Original message was deleted", dimStyle)
 	}

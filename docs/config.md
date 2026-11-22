@@ -1361,6 +1361,12 @@ Default: `{ foreground = "blue" }`
 
 Default: `{ foreground = "yellow" }`
 
+### theme.messages_list.sticker_style
+
+The style of the labels that stand for stickers, as in `(sticker: wave)`.
+
+Default: `{ foreground = "green" }`
+
 ### theme.messages_list.reaction_style
 
 Default: `{ attributes = "dim" }`

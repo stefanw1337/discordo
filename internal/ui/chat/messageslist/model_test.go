@@ -634,3 +634,32 @@ func TestModelJumpTo(t *testing.T) {
 		}
 	})
 }
+
+func TestModelStickers(t *testing.T) {
+	ml := newTestModel(t, testConfig(t))
+	ml.cfg.UI.MessagesList.Avatars.Preview = false
+	render := func(message discord.Message) string {
+		var got strings.Builder
+		for _, span := range ml.renderMessage(message, nil, tcell.StyleDefault, true) {
+			got.WriteString(span.Text)
+		}
+		return got.String()
+	}
+
+	wave := discord.StickerItem{ID: 1, Name: "wave"}
+	for _, test := range []struct {
+		name    string
+		message discord.Message
+		want    string
+	}{
+		{"only_sticker", discord.Message{ID: 1, Stickers: []discord.StickerItem{wave}}, "(sticker: wave)"},
+		{"after_content", discord.Message{ID: 2, Content: "hi", Stickers: []discord.StickerItem{wave}}, "hi\n(sticker: wave)"},
+		{"no_name", discord.Message{ID: 3, Stickers: []discord.StickerItem{{ID: 2}}}, "(sticker)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := render(test.message); !strings.Contains(got, test.want) {
+				t.Fatalf("got %q, want it to contain %q", got, test.want)
+			}
+		})
+	}
+}
