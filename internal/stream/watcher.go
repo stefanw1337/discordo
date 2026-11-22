@@ -39,11 +39,21 @@ type Status struct {
 	Err error
 }
 
+// AudioSink plays the audio of the stream watched, along with that of the voice channel it is in.
+type AudioSink interface {
+	// PlayStream plays an Opus packet with the sequence number seq, which userID sent with ssrc.
+	PlayStream(ssrc uint32, userID discord.UserID, seq uint16, packet []byte) error
+	// StopStream stops playing what was played.
+	StopStream()
+}
+
 // Watcher watches one stream at a time.
 type Watcher struct {
 	state  *state.State
 	dave   godave.SessionCreateFunc
 	player PlayerConfig
+	// audio plays the stream's audio, or is nil to play none.
+	audio AudioSink
 
 	mutex  sync.Mutex
 	status Status
@@ -52,9 +62,10 @@ type Watcher struct {
 	updates chan struct{}
 }
 
-// NewWatcher returns a watcher that encrypts end to end with sessions from dave and plays with player.
-func NewWatcher(state *state.State, dave godave.SessionCreateFunc, player PlayerConfig) *Watcher {
-	return &Watcher{state: state, dave: dave, player: player, updates: make(chan struct{}, 1)}
+// NewWatcher returns a watcher that encrypts end to end with sessions from dave, plays video with player and audio
+// with audio, if it is not nil.
+func NewWatcher(state *state.State, dave godave.SessionCreateFunc, player PlayerConfig, audio AudioSink) *Watcher {
+	return &Watcher{state: state, dave: dave, player: player, audio: audio, updates: make(chan struct{}, 1)}
 }
 
 // Updates sends whenever the status changes.
@@ -260,8 +271,8 @@ type receiver struct {
 	owner   discord.UserID
 
 	transport *transport
-	// videoSSRC and rtxSSRC are what the owner of the stream sends video and repairs with.
-	videoSSRC, rtxSSRC atomic.Uint32
+	// videoSSRC and rtxSSRC are what the owner of the stream sends video and repairs with, and audioSSRC audio.
+	videoSSRC, rtxSSRC, audioSSRC atomic.Uint32
 
 	// The fields below are used by the goroutine that receives.
 	jitter       *jitterBuffer
@@ -331,6 +342,9 @@ func (r *receiver) handle(ctx context.Context, op ws.Op, ready **readyEvent) err
 		if data.UserID != r.owner {
 			return nil
 		}
+		if data.AudioSSRC != 0 {
+			r.audioSSRC.Store(data.AudioSSRC)
+		}
 		ssrc, rtx := data.primary()
 		if ssrc == 0 {
 			return nil
@@ -382,8 +396,14 @@ func codecOf(payloadType uint8) (string, depacketizer) {
 	return "", nil
 }
 
-// handlePacket puts a video packet of the stream's owner in order and plays the frames it completes.
+// handlePacket plays the audio of the stream's owner, and puts a video packet of theirs in order and plays the
+// frames it completes.
 func (r *receiver) handlePacket(packet rtpPacket) error {
+	if audio := r.audioSSRC.Load(); audio != 0 && packet.ssrc == audio {
+		r.playAudio(packet)
+		return nil
+	}
+
 	video, rtx := r.videoSSRC.Load(), r.rtxSSRC.Load()
 	switch {
 	case video == 0:
@@ -395,7 +415,7 @@ func (r *receiver) handlePacket(packet rtpPacket) error {
 		}
 		packet = repaired
 	case packet.ssrc != video:
-		// Audio, and video of others, are not played yet.
+		// Video of others is not played.
 		return nil
 	}
 
@@ -465,6 +485,22 @@ func (r *receiver) playFrame(f frame, depacketizer depacketizer) error {
 	return nil
 }
 
+// playAudio plays an Opus packet of the stream, once its end-to-end encryption is removed.
+func (r *receiver) playAudio(packet rtpPacket) {
+	sink := r.watcher.audio
+	if sink == nil || packet.payloadType != payloadOpus {
+		return
+	}
+	opus, err := r.gateway.decrypt(r.owner, packet.payload)
+	if err != nil {
+		slog.Debug("failed to decrypt a stream's audio", "err", err)
+		return
+	}
+	if err := sink.PlayStream(packet.ssrc, r.owner, packet.sequence, opus); err != nil {
+		slog.Debug("failed to play a stream's audio", "err", err)
+	}
+}
+
 // requestKeyframe asks the stream's owner for a keyframe, at most every pliInterval.
 func (r *receiver) requestKeyframe() {
 	video := r.videoSSRC.Load()
@@ -486,6 +522,9 @@ func (r *receiver) end(err error) {
 }
 
 func (r *receiver) stop() {
+	if sink := r.watcher.audio; sink != nil {
+		defer sink.StopStream()
+	}
 	if r.transport != nil {
 		r.transport.close()
 	}

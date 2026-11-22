@@ -9,6 +9,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/gateway"
 	"github.com/ayn2op/arikawa/v3/state"
 	"github.com/ayn2op/arikawa/v3/state/store/defaultstore"
+	"github.com/tphakala/go-opus/opus"
 )
 
 func TestSessionFollow(t *testing.T) {
@@ -77,5 +78,54 @@ func TestSessionFollow(t *testing.T) {
 				t.Fatalf("got %+v, want %+v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestSessionPlayStream(t *testing.T) {
+	s := New(state.NewWithStore("", defaultstore.New()), -40, 100)
+	encoder, err := opus.NewEncoder(opus.EncoderConfig{SampleRate: sampleRate, Channels: channels})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A loud square wave, encoded as the stream's audio would be.
+	pcm := make([]int16, frameSamples)
+	for i := range pcm {
+		pcm[i] = 8000
+		if i/96%2 == 0 {
+			pcm[i] = -8000
+		}
+	}
+	packet := make([]byte, 4000)
+	for seq := uint16(1); seq <= 4; seq++ {
+		n, err := encoder.Encode(pcm, packet)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.PlayStream(7, 5, seq, packet[:n]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	output := make([]byte, frameBytes)
+	s.mix(output, nil)
+	loud := false
+	for _, b := range output {
+		if b != 0 {
+			loud = true
+			break
+		}
+	}
+	if !loud {
+		t.Fatal("the stream's audio was not mixed in")
+	}
+
+	s.StopStream()
+	clear(output)
+	s.mix(output, nil)
+	for _, b := range output {
+		if b != 0 {
+			t.Fatal("the stream's audio played after it stopped")
+		}
 	}
 }

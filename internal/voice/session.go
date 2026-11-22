@@ -98,6 +98,8 @@ type Session struct {
 	status   Status
 	speaking map[discord.UserID]bool
 	speakers map[uint32]*speaker
+	// streamSpeakers play the audio of the Go Live stream watched, by its SSRC on the stream's connection.
+	streamSpeakers map[uint32]*speaker
 	// volumes is how loud each user is played, in percent, if not 100.
 	volumes map[discord.UserID]int
 }
@@ -112,7 +114,9 @@ func New(state *state.State, sensitivity float64, volume int) *Session {
 		mic:       make(chan []byte, 4),
 		speaking:  make(map[discord.UserID]bool),
 		speakers:  make(map[uint32]*speaker),
-		volumes:   make(map[discord.UserID]int),
+
+		streamSpeakers: make(map[uint32]*speaker),
+		volumes:        make(map[discord.UserID]int),
 	}
 	state.AddHandler(session.follow)
 
@@ -387,14 +391,42 @@ func (s *Session) mix(output, _ []byte) {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 
-	for _, speaker := range s.speakers {
-		gain := s.volume
-		if volume, ok := s.volumes[speaker.userID]; ok {
-			gain *= float64(volume) / 100
-		}
+	for _, speakers := range []map[uint32]*speaker{s.speakers, s.streamSpeakers} {
+		for _, speaker := range speakers {
+			gain := s.volume
+			if volume, ok := s.volumes[speaker.userID]; ok {
+				gain *= float64(volume) / 100
+			}
 
-		speaker.mix(output, gain)
+			speaker.mix(output, gain)
+		}
 	}
+}
+
+// PlayStream plays an Opus packet with the sequence number seq of the audio of a Go Live stream that userID shares,
+// sent with ssrc on the stream's connection, along with the voice channel joined. It is played at userID's volume.
+func (s *Session) PlayStream(ssrc uint32, userID discord.UserID, seq uint16, packet []byte) error {
+	s.stateMu.Lock()
+	speaker := s.streamSpeakers[ssrc]
+	if speaker == nil {
+		var err error
+		if speaker, err = newSpeaker(seq); err != nil {
+			s.stateMu.Unlock()
+			return err
+		}
+		speaker.userID = userID
+		s.streamSpeakers[ssrc] = speaker
+	}
+	s.stateMu.Unlock()
+
+	return speaker.write(seq, packet)
+}
+
+// StopStream stops playing the audio of the stream watched.
+func (s *Session) StopStream() {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	clear(s.streamSpeakers)
 }
 
 // receive buffers what each user says in the voice channels that session joins.

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/voice/udp"
 	"github.com/disgoorg/godave"
 )
@@ -175,5 +176,41 @@ func TestDeleteError(t *testing.T) {
 	}
 	if err := deleteError(&DeleteEvent{Reason: "stream_full"}); err == nil || err == ErrStreamEnded {
 		t.Fatalf("err = %v, want one that says it is full", err)
+	}
+}
+
+// fakeSink records the audio it is given.
+type fakeSink struct {
+	packets [][]byte
+	stopped bool
+}
+
+func (s *fakeSink) PlayStream(_ uint32, _ discord.UserID, _ uint16, packet []byte) error {
+	s.packets = append(s.packets, packet)
+	return nil
+}
+
+func (s *fakeSink) StopStream() { s.stopped = true }
+
+func TestReceiverPlaysAudio(t *testing.T) {
+	sink := &fakeSink{}
+	w := &Watcher{audio: sink, updates: make(chan struct{}, 1)}
+	r := &receiver{
+		watcher: w, key: "call:1:2", owner: 2,
+		gateway: newVoiceGateway("example.invalid", identifyCommand{UserID: 1, ChannelID: 1}, godave.NewNoopSession),
+		ended:   make(chan struct{}), received: make(chan struct{}),
+	}
+	r.audioSSRC.Store(30)
+
+	r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 30, sequence: 1, payload: []byte{0xF8, 0xFF, 0xFE}})
+	// Audio of anyone else is not played.
+	r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 31, sequence: 1, payload: []byte{1}})
+	if len(sink.packets) != 1 || string(sink.packets[0]) != string([]byte{0xF8, 0xFF, 0xFE}) {
+		t.Fatalf("played %v, want the owner's packet", sink.packets)
+	}
+
+	r.stop()
+	if !sink.stopped {
+		t.Fatal("the audio did not stop with the stream")
 	}
 }

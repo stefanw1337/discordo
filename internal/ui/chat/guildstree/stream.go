@@ -18,7 +18,7 @@ type StreamMsg struct{}
 
 func newWatcher(m Model) *stream.Watcher {
 	player := stream.PlayerConfig{Path: m.cfg.Stream.Player, Args: m.cfg.Stream.PlayerArgs}
-	return stream.NewWatcher(m.state.State, dave.CreateFunc(), player)
+	return stream.NewWatcher(m.state.State, dave.CreateFunc(), player, m.voiceSession)
 }
 
 // listenStream waits for the watcher's status to change.

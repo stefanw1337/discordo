@@ -29,6 +29,9 @@ var errNoVoice = errors.New("built without voice (build tag: no_voice)")
 
 func (*Session) Join(discord.ChannelID) error { return errNoVoice }
 
+func (*Session) PlayStream(uint32, discord.UserID, uint16, []byte) error { return nil }
+func (*Session) StopStream()                                             {}
+
 // Player plays nothing.
 type Player struct{}
 
