@@ -27,6 +27,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/forumposts"
 	"github.com/ayn2op/discordo/internal/ui/chat/guildstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/memberstree"
+	"github.com/ayn2op/discordo/internal/ui/chat/mentionsinbox"
 	"github.com/ayn2op/discordo/internal/ui/chat/messagesearch"
 	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
@@ -71,6 +72,10 @@ type Model struct {
 	forumPosts forumposts.Model
 	// profileCard shows the profile of a user.
 	profileCard profilecard.Model
+	// mentionsInbox lists the messages that recently mentioned the user.
+	mentionsInbox mentionsinbox.Model
+	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
+	pendingJump pendingJump
 
 	selectedChannel *discord.Channel
 	// windowUnfocused reports whether the terminal window lost focus.
@@ -140,6 +145,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.messageSearch = messagesearch.NewModel(cfg, m.state)
 	m.forumPosts = forumposts.NewModel(cfg, m.state)
 	m.profileCard = profilecard.NewModel(cfg, m.state)
+	m.mentionsInbox = mentionsinbox.NewModel(cfg, m.state)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -164,7 +170,14 @@ const (
 	overlayMessageSearch
 	overlayForumPosts
 	overlayProfileCard
+	overlayMentionsInbox
 )
+
+// pendingJump is a message in a channel being opened, to select once the channel loads.
+type pendingJump struct {
+	channelID discord.ChannelID
+	messageID discord.MessageID
+}
 
 // pickerView returns the view of the picker shown on top, or nil if none is open.
 func (m Model) pickerView() tview.Widget {
@@ -181,6 +194,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.forumPosts.View()
 	case overlayProfileCard:
 		return m.profileCard.View()
+	case overlayMentionsInbox:
+		return m.mentionsInbox.View()
 	default:
 		return nil
 	}
@@ -269,7 +284,13 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		}
 		title := ui.ChannelToString(msg.Channel, m.cfg.Icons, m.state) + " - " + consts.Name
 		// Not shown again soon.
-		return m, cmd.Batch{m.clearImages(), cmd.SetTitle(title), m.messagesList.SetChannel(&msg.Channel, msg.Messages), membersCmd}
+		commands := cmd.Batch{m.clearImages(), cmd.SetTitle(title), m.messagesList.SetChannel(&msg.Channel, msg.Messages), membersCmd}
+		if jump := m.pendingJump; jump.channelID == msg.Channel.ID {
+			m.pendingJump = pendingJump{}
+			m.setFocus(paneMessagesList)
+			commands = append(commands, m.messagesList.JumpTo(jump.channelID, jump.messageID))
+		}
+		return m, commands
 	case messageslist.Msg:
 		return m, m.updatePane(paneMessagesList, msg)
 	case tview.ResizeMsg:
@@ -348,8 +369,13 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case messagesearch.SelectedMsg:
 		m.overlay = overlayNone
-		m.setFocus(paneMessagesList)
-		return m, m.messagesList.JumpTo(msg.ChannelID, msg.MessageID)
+		return m, m.jumpTo(msg.ChannelID, msg.MessageID)
+	case mentionsinbox.SelectedMsg:
+		m.overlay = overlayNone
+		return m, m.jumpTo(msg.ChannelID, msg.MessageID)
+	case mentionsinbox.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
 	case messagesearch.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
@@ -429,6 +455,13 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.ToggleChannelsPicker.Keybind):
 			m.togglePicker()
 			return m, nil
+		case keybind.Matches(msg, keybinds.ToggleMentionsInbox.Keybind):
+			if m.overlay == overlayMentionsInbox {
+				m.overlay = overlayNone
+				return m, nil
+			}
+			m.overlay = overlayMentionsInbox
+			return m, m.mentionsInbox.Open()
 		// The guilds tree is what the voice channel joined is in.
 		case keybind.Matches(msg, keybinds.ToggleMute.Keybind, keybinds.ToggleDeafen.Keybind, keybinds.LeaveVoice.Keybind):
 			return m, m.updatePane(paneGuildsTree, msg)
@@ -470,6 +503,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.forumPosts, cmd = m.forumPosts.Update(msg)
 	case overlayProfileCard:
 		m.profileCard, cmd = m.profileCard.Update(msg)
+	case overlayMentionsInbox:
+		m.mentionsInbox, cmd = m.mentionsInbox.Update(msg)
 	default:
 		cmd = m.updatePane(m.focused, msg)
 	}

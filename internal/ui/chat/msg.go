@@ -97,6 +97,17 @@ func (m *Model) navigateToChannel(channelID discord.ChannelID) tview.Cmd {
 	return cmd
 }
 
+// jumpTo selects the message with messageID in channelID, opening the channel first if another is shown.
+func (m *Model) jumpTo(channelID discord.ChannelID, messageID discord.MessageID) tview.Cmd {
+	if m.selectedChannel != nil && m.selectedChannel.ID == channelID {
+		m.setFocus(paneMessagesList)
+		return m.messagesList.JumpTo(channelID, messageID)
+	}
+
+	m.pendingJump = pendingJump{channelID: channelID, messageID: messageID}
+	return m.navigateToChannel(channelID)
+}
+
 // openThread opens thread, such as a post of a forum, which the state may not have if it was not active or not joined.
 func (m *Model) openThread(thread discord.Channel) tview.Cmd {
 	if _, err := m.state.Cabinet.Channel(thread.ID); err != nil {

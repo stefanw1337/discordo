@@ -647,6 +647,12 @@ Default: `"alt+m"`
 
 Default: `"ctrl+k"`
 
+## keybinds.toggle_mentions_inbox
+
+Show the messages that recently mentioned you, your roles, @everyone or @here, in any server or DM, and jump to the one picked.
+
+Default: `"alt+i"`
+
 ## keybinds.toggle_mute
 
 Start or stop sending what the microphone captures to the voice channel joined.

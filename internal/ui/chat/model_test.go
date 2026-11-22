@@ -209,3 +209,21 @@ func TestModelProfileCard(t *testing.T) {
 		t.Fatal("the profile card did not close")
 	}
 }
+
+func TestModelJumpTo(t *testing.T) {
+	t.Run("another channel is opened first", func(t *testing.T) {
+		m := newTestModel(t)
+		m.jumpTo(2, 3)
+		if m.pendingJump != (pendingJump{channelID: 2, messageID: 3}) {
+			t.Fatalf("pending jump = %v", m.pendingJump)
+		}
+	})
+	t.Run("the shown channel jumps at once", func(t *testing.T) {
+		m := newTestModel(t)
+		m.selectedChannel = &discord.Channel{ID: 2}
+		m.jumpTo(2, 3)
+		if m.pendingJump != (pendingJump{}) {
+			t.Fatalf("pending jump = %v, want none", m.pendingJump)
+		}
+	})
+}
