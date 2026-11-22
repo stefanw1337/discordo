@@ -13,6 +13,7 @@ import (
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/discordo/internal/stream"
 	"github.com/ayn2op/discordo/internal/ui"
+	"github.com/ayn2op/discordo/internal/ui/images"
 	uitree "github.com/ayn2op/discordo/internal/ui/tree"
 	"github.com/ayn2op/discordo/internal/voice"
 	"github.com/ayn2op/ningen/v3"
@@ -29,7 +30,14 @@ import (
 type dmNode struct{}
 
 // folderNode is the reference of a guild folder's node, whose children are its guilds.
-type folderNode struct{}
+type folderNode struct {
+	// name and style are of the folder's name, which its icons are shown before.
+	name  string
+	style tview.Style
+}
+
+// defaultFolderName is the name of a folder that was not given one.
+const defaultFolderName = "Folder"
 
 const (
 	dmNodeName        = "Direct Messages"
@@ -63,6 +71,9 @@ type Model struct {
 
 	// focused reports whether the tree takes keys.
 	focused bool
+
+	// images are the images loaded, among which the guild icons.
+	images map[discord.URL]images.Widget
 }
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
@@ -76,6 +87,7 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 
 		favorites:     loadFavorites(defaultFavoritesPath()),
 		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
+		images:        make(map[discord.URL]images.Widget),
 	}
 	m.watcher = newWatcher(m)
 	return m
@@ -204,10 +216,8 @@ func (m Model) refreshGuildNode(guildID discord.GuildID) {
 	}
 
 	if guild, err := m.state.Cabinet.Guild(guildID); err == nil {
-		setNodeText(node, m.guildText(*guild))
+		m.setGuildSpans(node, *guild)
 	}
-
-	setNodeNameStyle(node, m.guildNodeStyle(guildID))
 }
 
 func (m Model) updateDMNodeStyle(userID discord.UserID) {
@@ -237,16 +247,16 @@ func (m Model) moveDMToFront(channelID discord.ChannelID) {
 }
 
 func (m Model) createFolderNode(folder gateway.GuildFolder, guildsByID map[discord.GuildID]*gateway.GuildCreateEvent) {
-	name := "Folder"
+	name := defaultFolderName
 	if folder.Name != "" {
 		name = folder.Name
 	}
 
-	node := tree.NewNode(name).SetReference(folderNode{}).SetExpanded(m.cfg.UI.GuildsTree.AutoExpandFolders)
+	style := tcell.StyleDefault
 	if folder.Color != 0 {
-		folderStyle := tcell.StyleDefault.Foreground(tcell.NewHexColor(int32(folder.Color)))
-		setNodeNameStyle(node, folderStyle)
+		style = tcell.StyleDefault.Foreground(tcell.NewHexColor(int32(folder.Color)))
 	}
+	node := tree.NewNode(name).SetReference(folderNode{name, style}).SetExpanded(m.cfg.UI.GuildsTree.AutoExpandFolders)
 	m.root.AddChild(node)
 
 	for _, guildID := range folder.GuildIDs {
@@ -254,6 +264,7 @@ func (m Model) createFolderNode(folder gateway.GuildFolder, guildsByID map[disco
 			m.createGuildNode(node, guildEvent.Guild)
 		}
 	}
+	m.setFolderSpans(node, name, style)
 }
 
 func (m Model) guildNodeStyle(guildID discord.GuildID) tview.Style {
@@ -281,12 +292,12 @@ func (m Model) channelNodeStyle(channel discord.Channel) tview.Style {
 }
 
 func (m Model) createGuildNode(parent *tree.Node, guild discord.Guild) {
-	guildNode := tree.NewNode(m.guildText(guild)).
+	guildNode := tree.NewNode("").
 		SetReference(guild.ID).
 		SetExpandable(true).
 		SetExpanded(false).
 		SetIndent(m.cfg.Sidebar.Indents.Guild)
-	setNodeNameStyle(guildNode, m.guildNodeStyle(guild.ID))
+	m.setGuildSpans(guildNode, guild)
 	parent.AddChild(guildNode)
 	m.guildNodes[guild.ID] = guildNode
 }
@@ -588,14 +599,22 @@ func isVoice(channelType discord.ChannelType) bool {
 // setNodeNameStyle styles the name of node, which is the first span of its text.
 func setNodeNameStyle(node *tree.Node, style tview.Style) {
 	spans := node.Spans()
-	spans[0].Style = style
+	index := nameIndex(spans)
+	if index >= len(spans) {
+		return
+	}
+	spans[index].Style = style
 	node.SetSpans(spans...)
 }
 
 // setNodeText sets the text of the name of node, keeping its style.
 func setNodeText(node *tree.Node, name string) {
 	spans := node.Spans()
-	spans[0].Text = name
+	index := nameIndex(spans)
+	if index >= len(spans) {
+		return
+	}
+	spans[index].Text = name
 	node.SetSpans(spans...)
 }
 
@@ -606,8 +625,13 @@ func (m Model) channelText(channel discord.Channel) string {
 
 // guildText returns the name of guild with the unread mentions in its channels after it.
 func (m Model) guildText(guild discord.Guild) string {
-	channels, _ := m.state.Cabinet.Channels(guild.ID)
-	return guild.Name + mentionsLabel(m.mentions(channels...))
+	return guild.Name + mentionsLabel(m.guildMentions(guild.ID))
+}
+
+// guildMentions returns the number of unread mentions in the channels of guildID.
+func (m Model) guildMentions(guildID discord.GuildID) int {
+	channels, _ := m.state.Cabinet.Channels(guildID)
+	return m.mentions(channels...)
 }
 
 // dmNodeText returns the name of the direct messages node with their unread mentions after it.
@@ -930,6 +954,9 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	switch msg := msg.(type) {
 	case *gateway.ReadyEvent:
 		m.rebuild(msg)
+		return m, m.LoadImages()
+	case images.ChangedMsg:
+		m.setImages(msg)
 		return m, nil
 	case *gateway.MessageCreateEvent:
 		if !msg.GuildID.IsValid() {

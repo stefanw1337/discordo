@@ -91,7 +91,7 @@ func (m *Model) reloadImages(cell image.Point) tview.Cmd {
 		return nil
 	}
 
-	return cmd.Batch{m.clearImages(), m.messagesList.LoadImages()}
+	return cmd.Batch{m.clearImages(), m.messagesList.LoadImages(), m.guildsTree.LoadImages()}
 }
 
 // clearImages drops the images and returns a command that frees them in the terminal.
@@ -113,7 +113,7 @@ func (m *Model) sendImages() tview.Cmd {
 	var command tview.Cmd
 	m.reactionsPicker, command = m.reactionsPicker.Update(images)
 	m.profileCard, _ = m.profileCard.Update(images)
-	return cmd.Batch{command, m.updatePane(paneMessagesList, images), m.updatePane(paneComposer, images)}
+	return cmd.Batch{command, m.updatePane(paneMessagesList, images), m.updatePane(paneComposer, images), m.updatePane(paneGuildsTree, images)}
 }
 
 func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {

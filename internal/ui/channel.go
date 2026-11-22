@@ -71,6 +71,13 @@ func recipientName(recipient discord.User, channelType discord.ChannelType, stat
 // SortGuildChannels sorts channels by position, and threads, which have none, by latest activity first.
 func SortGuildChannels(channels []discord.Channel) {
 	slices.SortStableFunc(channels, func(a, b discord.Channel) int {
+		// Voice channels come after the others, as in Discord, which numbers their positions apart.
+		if aVoice, bVoice := isVoiceChannel(a.Type), isVoiceChannel(b.Type); aVoice != bVoice {
+			if aVoice {
+				return 1
+			}
+			return -1
+		}
 		if order := cmp.Compare(a.Position, b.Position); order != 0 {
 			return order
 		}
@@ -85,6 +92,10 @@ func SortGuildChannels(channels []discord.Channel) {
 		}
 		return cmp.Compare(lastMessageID(b), lastMessageID(a))
 	})
+}
+
+func isVoiceChannel(channelType discord.ChannelType) bool {
+	return channelType == discord.GuildVoice || channelType == discord.GuildStageVoice
 }
 
 // SortPrivateChannels sorts channels by latest activity first.

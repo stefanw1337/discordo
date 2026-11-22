@@ -349,6 +349,13 @@ They can still be opened from the channels picker. The tree is rebuilt with the 
 
 Default: `false`
 
+### ui.guilds_tree.guild_icons
+
+How guilds are shown: "both" their icon and name, "icon" alone or "name" alone. Icons are shown in terminals
+that draw images sharply with sixels, such as Windows Terminal, and folders show the icons of their guilds.
+
+Default: `"both"`
+
 ## ui.members_tree
 
 ### ui.members_tree.graphics
