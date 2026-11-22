@@ -308,9 +308,11 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		cols, rows := msg.Size()
 		width, height := msg.PixelSize()
 		// A resize without a size in pixels may be followed by the terminal's own report of it.
-		if cols > 0 && rows > 0 && width > 0 && height > 0 {
+		// A cell smaller than any font's is a size the terminal got wrong, as some report cells for pixels.
+		if cols > 0 && rows > 0 && width/cols >= minCellWidth && height/rows >= minCellHeight {
 			m.cellWidth, m.cellHeight = uint(width/cols), uint(height/rows)
 		}
+		slog.Info("terminal resized", "cols", cols, "rows", rows, "width", width, "height", height, "cell", m.imageCell())
 		var request tview.Cmd
 		if m.sixel && width == 0 {
 			request = requestPixelSize
@@ -321,6 +323,7 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		m.kitty = m.isKitty(msg.Name)
 		m.sixel = m.isSixel(msg.Name)
 		sixel.SetEnabled(m.sixel)
+		slog.Info("terminal", "name", msg.Name, "version", msg.Version, "kitty", m.kitty, "sixel", m.sixel, "cell", m.imageCell())
 		var request tview.Cmd
 		if m.sixel && m.cellWidth == 0 {
 			request = requestPixelSize

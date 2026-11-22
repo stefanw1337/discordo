@@ -75,6 +75,9 @@ func (m Model) imageCell() image.Point {
 	return image.Pt(int(m.cellWidth), int(m.cellHeight))
 }
 
+// minCellWidth and minCellHeight are the smallest cell, in pixels, taken as the terminal's.
+const minCellWidth, minCellHeight = 4, 8
+
 // sixelPixels is the cell width assumed for sixels when the terminal does not report it.
 const sixelPixels = 8
 

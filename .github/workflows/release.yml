@@ -1,17 +1,24 @@
 name: release
 
-# Pushing a tag such as v2026.11.1, or running this workflow from the Actions tab with a version, builds
-# ready-to-run files for every platform and publishes them as a GitHub release, so that nobody has to build discordo
-# to use it. A version with a hyphen, such as v2026.11.1-test.1, is published as a pre-release.
+# Pushing a tag such as v2026.11.1 builds ready-to-run files for every platform and publishes them as a GitHub
+# release, so that nobody has to build discordo to use it. A version with a hyphen, such as v2026.11.1-rc.1, is
+# published as a pre-release. Running it from the Actions tab builds the same files to test, which are downloaded
+# from the run's page, and publishes them only if "publish" is ticked.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, such as v2026.11.1 (a hyphen, as in v2026.11.1-test.1, makes a pre-release)"
+        description: "Version, such as v2026.11.1 (a hyphen, as in v2026.11.1-rc.1, makes a pre-release)"
         required: true
+        default: "v0.0.0-dev"
         type: string
+      publish:
+        description: "Publish as a GitHub release (unticked, the files are only on the run's page)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -118,6 +125,7 @@ jobs:
           path: discordo_*
 
   release:
+    if: ${{ github.event_name == 'push' || inputs.publish }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
