@@ -833,6 +833,12 @@ Mark the highlighted channel read, or every channel of the highlighted category,
 
 Default: `"m"`
 
+### keybinds.guilds_tree.toggle_favorite
+
+Add the highlighted channel to the favorites listed first in the tree, or remove it. Favorites are kept in favorites.json beside the config file.
+
+Default: `"f"`
+
 ### keybinds.guilds_tree.toggle_voice
 
 Join the highlighted voice channel to listen, or leave it.

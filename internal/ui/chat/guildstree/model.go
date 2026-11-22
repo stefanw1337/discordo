@@ -52,6 +52,12 @@ type Model struct {
 	channelNodes map[discord.ChannelID]*tree.Node
 	dmRootNode   *tree.Node
 
+	// favorites are the channels marked favorite, listed under favoritesRoot, which is nil while there are none,
+	// by favoriteNodes.
+	favorites     *favorites
+	favoritesRoot *tree.Node
+	favoriteNodes map[discord.ChannelID]*tree.Node
+
 	// focused reports whether the tree takes keys.
 	focused bool
 }
@@ -64,6 +70,9 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 		voiceSession: voice.New(state.State, cfg.Voice.Sensitivity, cfg.Voice.Volume),
 		guildNodes:   make(map[discord.GuildID]*tree.Node),
 		channelNodes: make(map[discord.ChannelID]*tree.Node),
+
+		favorites:     loadFavorites(defaultFavoritesPath()),
+		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
 	}
 }
 
@@ -81,6 +90,8 @@ func (m *Model) reset() *tree.Node {
 	// Keep allocated map capacity; READY can rebuild often during reconnects.
 	clear(m.guildNodes)
 	clear(m.channelNodes)
+	clear(m.favoriteNodes)
+	m.favoritesRoot = nil
 	m.dmRootNode = tree.NewNode(m.dmNodeText()).
 		SetReference(dmNode{}).
 		SetExpandable(true).
@@ -129,6 +140,7 @@ func (m *Model) rebuild(event *gateway.ReadyEvent) {
 		}
 	}
 
+	m.refreshFavorites()
 	m.setCurrentNode(root)
 }
 
@@ -144,6 +156,10 @@ func (m Model) refreshChannel(guildID discord.GuildID, channelID discord.Channel
 	} else if m.dmRootNode != nil {
 		setNodeText(m.dmRootNode, m.dmNodeText())
 		setNodeNameStyle(m.dmRootNode, m.dmNodeStyle())
+	}
+
+	if channel, err := m.state.Cabinet.Channel(channelID); err == nil {
+		m.refreshFavorite(*channel)
 	}
 
 	node := m.findNodeByRef(channelID)
@@ -931,6 +947,10 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case selectedMsg:
 		m.setCurrentNode(msg.node)
+		// A favorite opens its channel where it is, under its guild.
+		if ref, ok := msg.node.Reference().(favoriteRef); ok {
+			return m, m.navigate(discord.ChannelID(ref))
+		}
 		return m, m.selectNode(msg.node)
 	case tview.KeyMsg:
 		keybinds := m.cfg.Keybinds.GuildsTree
@@ -946,6 +966,11 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, nil
 		case keybind.Matches(msg, keybinds.SelectPreviousUnread.Keybind, keybinds.SelectNextUnread.Keybind):
 			m.selectAdjacentUnread(keybind.Matches(msg, keybinds.SelectPreviousUnread.Keybind))
+			return m, nil
+		case keybind.Matches(msg, keybinds.ToggleFavorite.Keybind):
+			if m.current != nil {
+				m.toggleFavorite(m.current)
+			}
 			return m, nil
 		case keybind.Matches(msg, keybinds.MarkRead.Keybind):
 			return m, m.markRead(m.current)

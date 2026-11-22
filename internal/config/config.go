@@ -287,6 +287,11 @@ var dir = sync.OnceValue(func() string {
 	return filepath.Join(path, consts.Name)
 })
 
+// Dir returns the directory that the configuration file and the files discordo keeps beside it, such as favorites, are in.
+func Dir() string {
+	return dir()
+}
+
 func DefaultPath() string {
 	return filepath.Join(dir(), fileName)
 }

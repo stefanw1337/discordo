@@ -130,6 +130,8 @@ type GuildsTreeKeybinds struct {
 	SelectNextUnread     Keybind `toml:"select_next_unread"`
 	// Mark the highlighted channel read, or every channel of the highlighted category, guild, folder or direct messages.
 	MarkRead Keybind `toml:"mark_read"`
+	// Add the highlighted channel to the favorites listed first in the tree, or remove it. Favorites are kept in favorites.json beside the config file.
+	ToggleFavorite Keybind `toml:"toggle_favorite"`
 	// Join the highlighted voice channel to listen, or leave it.
 	ToggleVoice Keybind `toml:"toggle_voice"`
 	// Play the highlighted voice member louder or quieter.
@@ -353,6 +355,7 @@ func defaultKeybinds() Keybinds {
 			SelectPreviousUnread: key("prev unread", "K"),
 			SelectNextUnread:     key("next unread", "J"),
 			MarkRead:             key("mark read", "m"),
+			ToggleFavorite:       key("favorite", "f"),
 			ToggleVoice:          key("join voice", "v"),
 			IncreaseVolume:       key("volume up", ">"),
 			DecreaseVolume:       key("volume down", "<"),

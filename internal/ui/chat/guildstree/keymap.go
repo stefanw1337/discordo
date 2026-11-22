@@ -44,6 +44,30 @@ func (m Model) selectDesc(node *tree.Node, desc string) string {
 	return desc
 }
 
+// favoriteKeybind returns the keybind that adds the highlighted channel to the favorites, or removes it if it is one.
+func (m Model) favoriteKeybind() keybind.Keybind {
+	toggle := m.cfg.Keybinds.GuildsTree.ToggleFavorite.Keybind
+	id, ok := discord.ChannelID(0), false
+	switch ref := m.currentRef().(type) {
+	case favoriteRef:
+		id, ok = discord.ChannelID(ref), true
+	case discord.ChannelID:
+		id, ok = ref, true
+	}
+	if ok && m.favorites != nil && m.favorites.contains(id) {
+		return toggle.WithHelp(toggle.Help().Key, "unfavorite")
+	}
+	return toggle
+}
+
+// currentRef returns the reference of the highlighted node, or nil if none is.
+func (m Model) currentRef() any {
+	if m.current == nil {
+		return nil
+	}
+	return m.current.Reference()
+}
+
 // toggleVoiceKeybinds returns the keybind that joins or leaves the highlighted voice channel, if it is one.
 func (m Model) toggleVoiceKeybinds() []keybind.Keybind {
 	channel := m.voiceChannel(m.current)
@@ -89,7 +113,7 @@ func (m Model) FullHelp() [][]keybind.Keybind {
 		{cfg.SelectUp.Keybind, cfg.SelectDown.Keybind, cfg.SelectTop.Keybind, cfg.SelectBottom.Keybind},
 		{cfg.ScrollUp.Keybind, cfg.ScrollDown.Keybind, cfg.ScrollTop.Keybind, cfg.ScrollBottom.Keybind, cfg.ScrollLeft.Keybind, cfg.ScrollRight.Keybind},
 		selectGroup,
-		{cfg.SelectPreviousUnread.Keybind, cfg.SelectNextUnread.Keybind, cfg.MarkRead.Keybind},
+		{cfg.SelectPreviousUnread.Keybind, cfg.SelectNextUnread.Keybind, cfg.MarkRead.Keybind, m.favoriteKeybind()},
 		append([]keybind.Keybind{cfg.YankID.Keybind}, m.toggleVoiceKeybinds()...),
 		m.volumeKeybinds(),
 	}
