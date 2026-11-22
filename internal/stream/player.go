@@ -118,7 +118,8 @@ func (p *player) stop() {
 }
 
 // findPlayer returns where the player named path is: path itself if it is a path or is found in PATH, or else the
-// program of that name next to discordo's own, so that mpv unpacked into the same folder is found without setup.
+// program of that name next to discordo's own or in a folder of that name there, as the Windows releases ship mpv,
+// so that it is found without setup.
 func findPlayer(path string) string {
 	if filepathBase(path) != path {
 		return path
@@ -130,10 +131,13 @@ func findPlayer(path string) string {
 	if err != nil {
 		return path
 	}
-	for _, name := range []string{path, path + ".exe"} {
-		beside := filepath.Join(filepath.Dir(self), name)
-		if info, err := os.Stat(beside); err == nil && !info.IsDir() {
-			return beside
+	dir := filepath.Dir(self)
+	for _, folder := range []string{dir, filepath.Join(dir, path)} {
+		for _, name := range []string{path, path + ".exe"} {
+			candidate := filepath.Join(folder, name)
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				return candidate
+			}
 		}
 	}
 	return path

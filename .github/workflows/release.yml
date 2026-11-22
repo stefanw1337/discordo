@@ -28,8 +28,8 @@ jobs:
           # Built on the oldest Ubuntu runners, so that the binaries run on older distributions too.
           - { os: ubuntu-22.04, name: linux_x86_64 }
           - { os: ubuntu-22.04-arm, name: linux_arm64 }
-          - { os: windows-latest, name: windows_x86_64 }
-          - { os: windows-11-arm, name: windows_arm64 }
+          - { os: windows-latest, name: windows_x86_64, mpv: x86_64 }
+          - { os: windows-11-arm, name: windows_arm64, mpv: aarch64 }
           - { os: macos-latest, name: macos_arm64 }
           - { os: macos-26-intel, name: macos_x86_64 }
           # For Termux. Voice needs the audio libraries of a desktop, so this one is text, images and streams' video.
@@ -63,6 +63,29 @@ jobs:
           CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" \
           CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
             go build -trimpath -ldflags=-s -tags no_voice -o dist/discordo .
+
+      # Windows has no package manager that most have mpv from, so its releases bring the latest build of
+      # shinchiro/mpv-winbuild-cmake in an mpv folder, where discordo finds it, with where its source is.
+      - name: Add mpv
+        if: ${{ matrix.mpv }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo shinchiro/mpv-winbuild-cmake --pattern "mpv-${{ matrix.mpv }}-2*.7z" --dir mpv-download
+          7z x -o"dist/mpv" mpv-download/*.7z
+          # The archive may hold mpv in a folder of its own.
+          exe="$(find dist/mpv -name mpv.exe | head -n 1)"
+          test -n "$exe"
+          if [ "$(dirname "$exe")" != dist/mpv ]; then
+            inner="$(dirname "$exe")"
+            mv "$inner"/* dist/mpv/
+            rmdir "$inner"
+          fi
+          test -f dist/mpv/mpv.exe
+          printf '%s\n' "mpv is free software under the GPL version 2 or later: https://mpv.io" \
+            "Its source is at https://github.com/mpv-player/mpv, and this build of it is from" \
+            "https://github.com/shinchiro/mpv-winbuild-cmake/releases, as $(basename mpv-download/*.7z)." > dist/mpv/SOURCE.txt
 
       - name: Package
         shell: bash
