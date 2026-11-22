@@ -1,13 +1,23 @@
 name: release
 
-# Pushing a tag such as v2026.11.1 builds ready-to-run files for every platform and publishes them as a GitHub
-# release, so that nobody has to build discordo to use it.
+# Pushing a tag such as v2026.11.1, or running this workflow from the Actions tab with a version, builds
+# ready-to-run files for every platform and publishes them as a GitHub release, so that nobody has to build discordo
+# to use it. A version with a hyphen, such as v2026.11.1-test.1, is published as a pre-release.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, such as v2026.11.1 (a hyphen, as in v2026.11.1-test.1, makes a pre-release)"
+        required: true
+        type: string
 
 permissions:
   contents: read
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -58,7 +68,7 @@ jobs:
         shell: bash
         run: |
           cp README.md LICENSE dist/
-          archive="discordo_${GITHUB_REF_NAME}_${{ matrix.name }}"
+          archive="discordo_${VERSION}_${{ matrix.name }}"
           if [ "$RUNNER_OS" = Windows ]; then
             (cd dist && 7z a -tzip "../$archive.zip" .)
           else
@@ -81,12 +91,13 @@ jobs:
           merge-multiple: true
       - name: Checksums
         run: sha256sum discordo_* > SHA256SUMS.txt
-      # A tag with a hyphen, such as v2026.11.1-test, is published as a pre-release.
+      # The release creates the tag at the commit built if it was run from the Actions tab.
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          case "$VERSION" in v*) ;; *) echo "The version must start with v, as in v2026.11.1" >&2; exit 1 ;; esac
           prerelease=""
-          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes $prerelease \
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes $prerelease \
             discordo_* SHA256SUMS.txt
