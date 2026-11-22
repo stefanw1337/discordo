@@ -317,7 +317,19 @@ func Dir() string {
 }
 
 func DefaultPath() string {
+	// A config.toml beside the program is used first, so that a copy of discordo kept in a folder of its own, as
+	// the Windows release is, keeps its settings there.
+	if exe, err := os.Executable(); err == nil {
+		if path := filepath.Join(filepath.Dir(exe), fileName); fileExists(path) {
+			return path
+		}
+	}
 	return filepath.Join(dir(), fileName)
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // Load reads the configuration file and parses it.

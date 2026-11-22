@@ -1,6 +1,8 @@
 package guildstree
 
 import (
+	"log/slog"
+
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
@@ -40,17 +42,12 @@ func (m Model) LoadImages() tview.Cmd {
 		return nil
 	}
 	request := images.RequestedMsg{Squares: map[discord.URL]uint{}}
-	for guildID := range m.guildNodes {
-		guild, err := m.state.Cabinet.Guild(guildID)
-		if err != nil {
-			continue
-		}
-		if url := iconURL(*guild); url != "" {
-			if _, ok := m.images[url]; !ok {
-				request.Squares[url] = 1
-			}
+	for _, url := range m.guildIcons {
+		if _, ok := m.images[url]; !ok && url != "" {
+			request.Squares[url] = 1
 		}
 	}
+	slog.Info("loading guild icons", "count", len(request.Squares), "guilds", len(m.guildIcons))
 	if len(request.Squares) == 0 {
 		return nil
 	}
@@ -62,11 +59,7 @@ func (m Model) icon(guildID discord.GuildID) []text.Span {
 	if !m.showIcons() {
 		return nil
 	}
-	guild, err := m.state.Cabinet.Guild(guildID)
-	if err != nil {
-		return nil
-	}
-	image, ok := m.images[iconURL(*guild)]
+	image, ok := m.images[m.guildIcons[guildID]]
 	if !ok {
 		return nil
 	}
@@ -95,16 +88,24 @@ func nameIndex(spans []text.Span) int {
 
 // setGuildSpans sets the text of the node of a guild: its icon, then its name unless only the icon is shown.
 func (m Model) setGuildSpans(node *tree.Node, guild discord.Guild) {
-	icon := m.icon(guild.ID)
-	name := m.guildText(guild)
+	m.guildIcons[guild.ID] = iconURL(guild)
+	m.guildNames[guild.ID] = guild.Name
+	m.setGuildSpansStyled(node, guild.ID, m.guildNodeStyle(guild.ID))
+}
+
+// setGuildSpansStyled sets the text of the node of guildID, whose name is styled with style.
+func (m Model) setGuildSpansStyled(node *tree.Node, guildID discord.GuildID, style tview.Style) {
+	icon := m.icon(guildID)
+	mentions := mentionsLabel(m.guildMentions(guildID))
+	name := m.guildNames[guildID] + mentions
 	if len(icon) != 0 {
 		if m.cfg.UI.GuildsTree.GuildIcons == guildIconsIcon {
-			name = mentionsLabel(m.guildMentions(guild.ID))
+			name = mentions
 		} else {
 			name = " " + name
 		}
 	}
-	node.SetSpans(append(icon, text.Span{Text: name, Style: m.guildNodeStyle(guild.ID)})...)
+	node.SetSpans(append(icon, text.Span{Text: name, Style: style})...)
 }
 
 // setFolderSpans sets the text of the node of a folder: the icons of its first guilds, then its name, which a folder
@@ -138,8 +139,9 @@ func (m Model) setFolderSpans(node *tree.Node, name string, style tview.Style) {
 // refreshIcons sets the text of every guild and folder node again, as the icons shown changed.
 func (m Model) refreshIcons() {
 	for guildID, node := range m.guildNodes {
-		if guild, err := m.state.Cabinet.Guild(guildID); err == nil {
-			m.setGuildSpans(node, *guild)
+		spans := node.Spans()
+		if index := nameIndex(spans); index < len(spans) {
+			m.setGuildSpansStyled(node, guildID, spans[index].Style)
 		}
 	}
 	for _, node := range m.root.Children() {

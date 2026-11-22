@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ayn2op/arikawa/v3/discord"
@@ -77,7 +78,18 @@ func (m Model) writeMessage(builder *markdown.Builder, message discord.Message, 
 			builder.Write(name, baseStyle.Bold(true))
 		})
 	default:
-		m.drawLayout(builder, message, baseStyle, false, nil)
+		// A kind of message not known here is shown as an ordinary one if it has anything to show, and otherwise as
+		// one that cannot be shown, which is logged so that it can be.
+		if messageContent(message) != "" || len(message.Embeds) != 0 || len(message.Attachments) != 0 {
+			m.drawDefaultMessage(builder, message, root, baseStyle, false)
+			return
+		}
+		if _, logged := unshownLogged.LoadOrStore(message.ID, true); !logged {
+			slog.Info("message that cannot be shown", "type", message.Type, "flags", message.Flags, "components", len(message.Components), "id", message.ID)
+		}
+		m.drawLayout(builder, message, baseStyle, false, func() {
+			builder.Write("sent a kind of message discordo cannot show yet.", baseStyle.Dim(true).Italic(true))
+		})
 	}
 }
 
@@ -450,5 +462,40 @@ func drawPinnedMessage(builder *markdown.Builder, message discord.Message, baseS
 
 // parse returns the parsed markdown of the content of message, with its mentions resolved from the state.
 func (m Model) parse(message discord.Message) ast.Node {
-	return md.ParseWithMessage([]byte(message.Content), *m.state.Cabinet, &message)
+	return md.ParseWithMessage([]byte(messageContent(message)), *m.state.Cabinet, &message)
+}
+
+// unshownLogged holds the IDs of the messages logged as ones that cannot be shown, which are drawn many times.
+var unshownLogged sync.Map
+
+// messageContent returns the text of message: its content, followed by the text its components show, as messages laid
+// out with components (as Discord's own and many bots' are) keep their text there and leave the content empty.
+func messageContent(message discord.Message) string {
+	parts := []string{}
+	if message.Content != "" {
+		parts = append(parts, message.Content)
+	}
+	for _, component := range message.Components {
+		parts = appendComponentText(parts, component)
+	}
+	return strings.Join(parts, "\n")
+}
+
+// appendComponentText appends the text that component and those inside it show to parts.
+func appendComponentText(parts []string, component discord.Component) []string {
+	switch component := component.(type) {
+	case *discord.TextDisplayComponent:
+		if component.Content != "" {
+			parts = append(parts, component.Content)
+		}
+	case *discord.SectionComponent:
+		for _, child := range component.Components {
+			parts = appendComponentText(parts, child)
+		}
+	case *discord.ContainerComponent:
+		for _, child := range component.Components {
+			parts = appendComponentText(parts, child)
+		}
+	}
+	return parts
 }

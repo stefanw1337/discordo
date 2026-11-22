@@ -102,3 +102,18 @@ func TestModelLoadImages(t *testing.T) {
 		}
 	})
 }
+
+func TestMessageContentComponents(t *testing.T) {
+	message := discord.Message{
+		Content: "hi",
+		Components: discord.TopLevelComponents{
+			&discord.ContainerComponent{Components: []discord.Component{
+				&discord.TextDisplayComponent{Content: "won the week"},
+				&discord.SectionComponent{Components: []discord.Component{&discord.TextDisplayComponent{Content: "see the leaderboard"}}},
+			}},
+		},
+	}
+	if got, want := messageContent(message), "hi\nwon the week\nsee the leaderboard"; got != want {
+		t.Fatalf("messageContent = %q, want %q", got, want)
+	}
+}

@@ -85,6 +85,8 @@ The configuration file allows you to configure and customize the behavior, keybi
 - Darwin: `$HOME/Library/Application Support/discordo/config.toml`
 - Windows: `%AppData%/discordo/config.toml`
 
+A `config.toml` in the same folder as the program is used before these, so a copy of discordo kept in a folder of its own, such as the Windows release, can keep its settings beside it.
+
 Use `-config-path` to change the path.
 
 Discordo uses the default configuration if a configuration file is not found in the aforementioned path; however, the default configuration file is not written to the path. [The configuration reference can be found here](./docs/config.md).

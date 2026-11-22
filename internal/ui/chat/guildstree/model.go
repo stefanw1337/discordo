@@ -74,6 +74,9 @@ type Model struct {
 
 	// images are the images loaded, among which the guild icons.
 	images map[discord.URL]images.Widget
+	// guildIcons and guildNames are the icon and name of each guild in the tree.
+	guildIcons map[discord.GuildID]discord.URL
+	guildNames map[discord.GuildID]string
 }
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
@@ -88,6 +91,8 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 		favorites:     loadFavorites(defaultFavoritesPath()),
 		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
 		images:        make(map[discord.URL]images.Widget),
+		guildIcons:    make(map[discord.GuildID]discord.URL),
+		guildNames:    make(map[discord.GuildID]string),
 	}
 	m.watcher = newWatcher(m)
 	return m
