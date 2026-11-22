@@ -42,13 +42,25 @@ func isAuthenticationFailed(err error) bool {
 	return ok && event.Code == closeCodeAuthenticationFailed
 }
 
-// closeState closes the session, if any, before sending next, so that next comes after the session is gone.
+// closeTimeout is the longest closeState waits for the session to close, so that a slow or dead connection does not hold up quitting.
+var closeTimeout = 2 * time.Second
+
+// closeState closes the session, if any, before sending next, so that next comes after the session is gone, or after closeTimeout if closing takes longer.
 func closeState(state *ningen.State, next tview.Msg) tview.Cmd {
 	return cmd.Task(func() tview.Msg {
-		if state != nil {
-			if err := state.Close(); err != nil {
+		if state == nil {
+			return next
+		}
+
+		closed := make(chan error, 1)
+		go func() { closed <- state.Close() }()
+		select {
+		case err := <-closed:
+			if err != nil {
 				slog.Error("failed to close the session", "err", err)
 			}
+		case <-time.After(closeTimeout):
+			slog.Warn("gave up waiting for the session to close", "timeout", closeTimeout)
 		}
 		return next
 	})
