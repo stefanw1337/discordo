@@ -48,6 +48,12 @@ jobs:
           echo "C:\msys64\clangarm64\bin" >> $env:GITHUB_PATH
           echo "CC=clang" >> $env:GITHUB_ENV
 
+      # The icon and description that Windows shows for discordo.exe, from winres, which go build takes from the
+      # .syso files this makes.
+      - name: Add the icon
+        if: ${{ runner.os == 'Windows' }}
+        run: go run github.com/tc-hib/go-winres@latest make --in winres/winres.json --arch amd64,arm64
+
       - name: Build
         if: ${{ !matrix.android }}
         shell: bash
