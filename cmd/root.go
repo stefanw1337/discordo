@@ -10,6 +10,7 @@ import (
 	"github.com/ayn2op/discordo/internal/logger"
 	"github.com/ayn2op/discordo/internal/ui/root"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
+	"github.com/ayn2op/discordo/internal/winterm"
 	"github.com/ayn2op/tview"
 	"github.com/gdamore/tcell/v3"
 )
@@ -41,6 +42,11 @@ func Run() error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// In the old console window it opens itself in Windows Terminal, where emoji and sharp images show.
+	if cfg.WindowsTerminal && winterm.Relaunch() {
+		return nil
 	}
 
 	screen, err := tcell.NewScreen()

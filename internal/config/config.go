@@ -198,6 +198,9 @@ type (
 		AutoFocus bool `toml:"auto_focus"`
 		// Whether to enable the mouse.
 		Mouse bool `toml:"mouse"`
+		// On Windows, whether discordo opens itself in Windows Terminal when it is started in the old console
+		// window, which shows neither emoji nor sharp images.
+		WindowsTerminal bool `toml:"windows_terminal"`
 		// The program opened by the `composer.open_editor` keybind. "default" uses `$EDITOR`.
 		Editor string `toml:"editor"`
 
@@ -245,6 +248,8 @@ func Default() Config {
 		AutoFocus: true,
 		Mouse:     true,
 		Editor:    "default",
+
+		WindowsTerminal: true,
 
 		Status:           "default",
 		HideBlockedUsers: true,

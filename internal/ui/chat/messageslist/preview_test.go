@@ -28,6 +28,20 @@ func TestModelPreviewSources(t *testing.T) {
 			Type:      discord.GIFVEmbed,
 			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
 		}}}, []previewSource{{proxy: "t", width: 2, height: 1}}},
+		{"youtube video plays from its page", discord.Message{Embeds: []discord.Embed{{
+			Type:      discord.VideoEmbed,
+			URL:       "https://www.youtube.com/watch?v=x",
+			Title:     "v",
+			Provider:  &discord.EmbedProvider{Name: "YouTube"},
+			Video:     &discord.EmbedVideo{URL: "https://www.youtube.com/embed/x"},
+			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
+		}}}, []previewSource{{proxy: "t", width: 2, height: 1, url: "https://www.youtube.com/watch?v=x", name: "v"}}},
+		{"video file plays itself", discord.Message{Embeds: []discord.Embed{{
+			Type:      discord.VideoEmbed,
+			URL:       "https://example.com/a.mp4",
+			Video:     &discord.EmbedVideo{URL: "https://cdn.example.com/a.mp4"},
+			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
+		}}}, []previewSource{{proxy: "t", width: 2, height: 1, url: "https://cdn.example.com/a.mp4"}}},
 		{"article thumbnail", discord.Message{Embeds: []discord.Embed{{
 			Type:      discord.ArticleEmbed,
 			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},

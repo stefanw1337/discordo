@@ -28,8 +28,12 @@ func (w clickable) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 	return w.Widget.Handle(msg, area)
 }
 
-// mediaViewerArgs show one image, GIF or video in mpv's window until it is closed, as an image viewer would.
-var mediaViewerArgs = []string{"--no-terminal", "--force-window=immediate", "--keep-open=yes", "--image-display-duration=inf", "--loop-file=inf", "--hwdec=auto-safe"}
+// mediaViewerArgs show one image, GIF or video in mpv's window until it is closed, as an image viewer would. A video
+// from a site such as YouTube is played through yt-dlp, at up to 1080p.
+var mediaViewerArgs = []string{
+	"--no-terminal", "--force-window=immediate", "--keep-open=yes", "--image-display-duration=inf", "--hwdec=auto-safe",
+	"--ytdl-format=bestvideo[height<=?1080]+bestaudio/best",
+}
 
 // viewMedia shows the media at url in the stream player, mpv by default, which shows images, GIFs and videos at
 // their full size, or in the browser if there is none.
@@ -65,6 +69,14 @@ func (m Model) viewSelectedMedia() tview.Cmd {
 	message, ok := m.selectedMessage()
 	if !ok {
 		return nil
+	}
+	// A linked video, as from YouTube, is what a message with one is usually about.
+	if m.cfg.UI.MessagesList.Embeds.Enabled {
+		for _, embed := range message.Embeds {
+			if embed.Video != nil {
+				return m.viewMedia(embedVideoURL(embed), embed.Title)
+			}
+		}
 	}
 	if sources := m.previewSources(*message); len(sources) != 0 {
 		return m.viewMedia(sources[0].url, sources[0].name)

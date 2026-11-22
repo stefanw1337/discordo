@@ -89,9 +89,17 @@ jobs:
             rmdir "$inner"
           fi
           test -f dist/mpv/mpv.exe
+          # yt-dlp beside mpv.exe, where mpv looks for it, plays videos linked from sites such as YouTube.
+          if [ "${{ matrix.mpv }}" = x86_64 ]; then
+            curl -fsSL -o dist/mpv/yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
+          else
+            curl -fsSL -o dist/mpv/yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_arm64.exe
+          fi
           printf '%s\n' "mpv is free software under the GPL version 2 or later: https://mpv.io" \
             "Its source is at https://github.com/mpv-player/mpv, and this build of it is from" \
-            "https://github.com/shinchiro/mpv-winbuild-cmake/releases, as $(basename mpv-download/*.7z)." > dist/mpv/SOURCE.txt
+            "https://github.com/shinchiro/mpv-winbuild-cmake/releases, as $(basename mpv-download/*.7z)." \
+            "" "yt-dlp.exe, which mpv plays videos from sites with, is public domain (the Unlicense):" \
+            "https://github.com/yt-dlp/yt-dlp" > dist/mpv/SOURCE.txt
 
       - name: Package
         shell: bash

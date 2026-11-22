@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
+	"github.com/ayn2op/discordo/internal/winterm"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	tviewimage "github.com/ayn2op/tview/image"
@@ -217,7 +219,9 @@ func (m Model) isSixel(name string) bool {
 	if m.isKitty(name) {
 		return false
 	}
-	if os.Getenv("WT_SESSION") != "" {
+	// Windows Terminal shows sixels, as do the other terminals that run programs in a pseudoconsole on Windows, but
+	// does not always pass WT_SESSION on, as when it is Windows' default terminal.
+	if os.Getenv("WT_SESSION") != "" || (runtime.GOOS == "windows" && !winterm.OldConsole()) {
 		return true
 	}
 	for _, terminal := range sixelTerminals {

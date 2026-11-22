@@ -38,11 +38,26 @@ func (m Model) previewSources(message discord.Message) []previewSource {
 		// Image and GIF embeds carry the media itself as the thumbnail.
 		case embed.Thumbnail != nil && (embed.Type == discord.ImageEmbed || embed.Type == discord.GIFVEmbed):
 			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedMediaURL(embed), embed.Title})
+		// A video, such as a YouTube link, shows its thumbnail, and plays when it is clicked.
+		case embed.Thumbnail != nil && embed.Video != nil:
+			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedVideoURL(embed), embed.Title})
 		}
 	}
 
 	// Non-image files have no dimensions.
 	return slices.DeleteFunc(sources, func(source previewSource) bool { return source.width == 0 || source.height == 0 })
+}
+
+// embedVideoURL returns what plays the video of embed: the page it was linked as, for a site such as YouTube, whose
+// player URL is not the video, which mpv plays from the page with yt-dlp; or else the video file itself.
+func embedVideoURL(embed discord.Embed) string {
+	if embed.Provider != nil && embed.URL != "" {
+		return embed.URL
+	}
+	if embed.Video != nil && embed.Video.URL != "" {
+		return embed.Video.URL
+	}
+	return embed.URL
 }
 
 // embedMediaURL returns the media an image or GIF embed shows: its video for a GIF, which Discord sends as one, or
