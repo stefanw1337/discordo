@@ -1158,9 +1158,10 @@ Default: `"up"`
 
 ### keybinds.composer.paste
 
-Paste from clipboard (supports both text and images).
+Paste from clipboard (supports both text and images). Windows Terminal keeps `ctrl+v` for itself, which pastes only
+text, so `alt+p` pastes images there.
 
-Default: `"ctrl+v"`
+Default: `["ctrl+v", "alt+p"]`
 
 ### keybinds.composer.send
 

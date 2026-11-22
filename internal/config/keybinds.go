@@ -203,7 +203,8 @@ type ComposerKeybinds struct {
 	// Edit your newest editable message loaded in the current channel, with no age limit.
 	// Only when the composer is empty, with no reply, attachments, or edit in progress.
 	EditLast Keybind `toml:"edit_last"`
-	// Paste from clipboard (supports both text and images).
+	// Paste from clipboard (supports both text and images). Windows Terminal keeps ctrl+v for itself, which pastes only
+	// text, so alt+p pastes images there.
 	Paste Keybind `toml:"paste"`
 	Send  Keybind `toml:"send"`
 	// Insert a new line at the cursor.
@@ -405,7 +406,7 @@ func defaultKeybinds() Keybinds {
 		},
 		Composer: ComposerKeybinds{
 			EditLast:           key("edit last", "up"),
-			Paste:              key("paste", "ctrl+v"),
+			Paste:              key("paste", "ctrl+v", "alt+p"),
 			Send:               key("send", "enter"),
 			Newline:            key("nl", "shift+enter"),
 			Cancel:             key("cancel", "esc"),
