@@ -3,6 +3,8 @@ package profilecard
 
 import (
 	"cmp"
+	"fmt"
+	"image"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,10 +15,15 @@ import (
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/discordo/internal/markdown"
 	"github.com/ayn2op/discordo/internal/ui"
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
+	"github.com/ayn2op/tview/column"
+	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/keybind"
+	"github.com/ayn2op/tview/layout"
+	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
 	"github.com/gdamore/tcell/v3"
 )
@@ -37,6 +44,8 @@ type Model struct {
 	// profile is what Discord answered, or nil while it loads or if it failed with err.
 	profile *Profile
 	err     error
+	// images are the chat model's, which loads them, by URL.
+	images map[discord.URL]tviewimage.Widget
 	// request numbers the profiles asked for, so that the answer for one replaced by another is dropped.
 	request int
 }
@@ -50,23 +59,89 @@ func (m *Model) Open(user discord.User, guildID discord.GuildID) tview.Cmd {
 	m.request++
 	m.user, m.guildID, m.profile, m.err = user, guildID, nil, nil
 	request, client := m.request, m.state.Client
-	return cmd.Task(func() tview.Msg {
+	return cmd.Batch{m.loadImages(), cmd.Task(func() tview.Msg {
 		profile, err := fetch(client, user.ID, guildID)
 		return loadedMsg{request: request, profile: profile, err: err}
-	})
+	})}
+}
+
+const (
+	// avatarRows is how tall the avatar is drawn, beside the names.
+	avatarRows = 4
+	// bannerRows is the most rows the banner takes, and accentRows the rows of the accent color without one.
+	bannerRows = 8
+	accentRows = 2
+	// bannerSize is the size of a banner in pixels, 5 by 2.
+	bannerWidth, bannerHeight = 600, 240
+	// innerWidth is the width inside the card's borders and padding.
+	innerWidth = Width - 4
+	// cdn is where Discord keeps avatars and banners.
+	cdn = "https://cdn.discordapp.com"
+)
+
+// avatarURL returns the avatar of the user, the one set for the guild if any.
+func (m Model) avatarURL() discord.URL {
+	if member := m.member(); member != nil && member.Avatar != "" {
+		return fmt.Sprintf("%s/guilds/%s/users/%s/avatars/%s.png?size=128", cdn, m.guildID, m.user.ID, member.Avatar)
+	}
+	return m.user.AvatarURLWithType(discord.PNGImage) + "?size=128"
+}
+
+// bannerURL returns the banner of the user, the one set for the guild if any, or "" if they have none.
+func (m Model) bannerURL() discord.URL {
+	if m.profile == nil {
+		return ""
+	}
+	userID := m.user.ID
+	if guild := m.profile.GuildMemberProfile; guild != nil && guild.Banner != "" {
+		return fmt.Sprintf("%s/guilds/%s/users/%s/banners/%s.png?size=600", cdn, m.guildID, userID, guild.Banner)
+	}
+	banner := m.profile.UserProfile.Banner
+	if banner == "" {
+		banner = m.profile.User.Banner
+	}
+	if banner == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/banners/%s/%s.png?size=600", cdn, userID, banner)
+}
+
+func (m Model) hasImage(url discord.URL) bool {
+	_, ok := m.images[url]
+	return ok
+}
+
+// loadImages asks for the avatar and banner not loaded yet.
+func (m Model) loadImages() tview.Cmd {
+	request := images.RequestedMsg{Squares: map[discord.URL]uint{}, Fitted: map[discord.URL]images.Fit{}}
+	if url := m.avatarURL(); !m.hasImage(url) {
+		request.Squares[url] = avatarRows
+	}
+	if url := m.bannerURL(); url != "" && !m.hasImage(url) {
+		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows}
+	}
+	if len(request.Squares) == 0 && len(request.Fitted) == 0 {
+		return nil
+	}
+	return cmd.Task(func() tview.Msg { return request })
 }
 
 // Profile is the part of Discord's answer to GET /users/{id}/profile that the card shows.
 type Profile struct {
 	User        discord.User `json:"user"`
 	UserProfile struct {
-		Bio      string `json:"bio"`
-		Pronouns string `json:"pronouns"`
+		Bio      string       `json:"bio"`
+		Pronouns string       `json:"pronouns"`
+		Banner   discord.Hash `json:"banner"`
+		// AccentColor is shown in place of a banner, and ThemeColors, of a Nitro profile theme, around the card.
+		AccentColor discord.Color   `json:"accent_color"`
+		ThemeColors []discord.Color `json:"theme_colors"`
 	} `json:"user_profile"`
-	// GuildMemberProfile is the bio and pronouns set for the guild, which come before the user's own.
+	// GuildMemberProfile is the bio, pronouns and banner set for the guild, which come before the user's own.
 	GuildMemberProfile *struct {
-		Bio      string `json:"bio"`
-		Pronouns string `json:"pronouns"`
+		Bio      string       `json:"bio"`
+		Pronouns string       `json:"pronouns"`
+		Banner   discord.Hash `json:"banner"`
 	} `json:"guild_member_profile"`
 	MutualGuilds []struct {
 		ID discord.GuildID `json:"id"`
@@ -106,17 +181,51 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	case loadedMsg:
 		if msg.request == m.request {
 			m.profile, m.err = msg.profile, msg.err
+			return m, m.loadImages()
 		}
+	case images.ChangedMsg:
+		m.images = msg
 	case tview.KeyMsg:
-		keybinds := m.cfg.Keybinds.Picker
-		if keybind.Matches(msg, keybinds.Cancel.Keybind, keybinds.Select.Keybind) {
+		if m.closes(msg) {
+			return m, cmd.Task(func() tview.Msg { return CancelMsg{} })
+		}
+	case tview.MouseMsg:
+		// A click outside the card, which the card itself lets through, closes it.
+		if msg.Action == tview.MouseLeftDown {
 			return m, cmd.Task(func() tview.Msg { return CancelMsg{} })
 		}
 	}
 	return m, nil
 }
 
-// View shows the profile in a box.
+// closes reports whether key closes the card: the picker's cancel or select keybind, or q.
+func (m Model) closes(key tview.KeyMsg) bool {
+	keybinds := m.cfg.Keybinds.Picker
+	return keybind.Matches(key, keybinds.Cancel.Keybind, keybinds.Select.Keybind) || key.Key() == tcell.KeyEscape || key.Str() == "q"
+}
+
+// card is the profile card's widget. It closes the card on its keys itself, as a picker does, and keeps clicks
+// inside it from reaching what is behind it, so that only a click outside closes it.
+type card struct {
+	tview.Widget
+	model Model
+}
+
+func (w card) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
+	switch msg := msg.(type) {
+	case tview.KeyMsg:
+		if w.model.closes(msg) {
+			return CancelMsg{}
+		}
+	case tview.MouseMsg:
+		if area.Contains(msg.Position()) {
+			return nil
+		}
+	}
+	return w.Widget.Handle(msg, area)
+}
+
+// View shows the profile in a box: the banner, or the accent color, the avatar beside the names, then the rest.
 func (m Model) View() tview.Widget {
 	footer := ""
 	switch {
@@ -126,14 +235,69 @@ func (m Model) View() tview.Widget {
 		footer = "Loading..."
 	}
 
-	content := text.Rich(m.lines()...)
-	return ui.Box(content, m.cfg, true).
+	header, body := m.lines()
+	var names tview.Widget = text.Rich(header...)
+	if avatar, ok := m.images[m.avatarURL()]; ok {
+		names = row.New(avatar, names).Spacing(1).Height(layout.Shrink)
+	}
+
+	content := column.New().Height(layout.Shrink)
+	if banner, ok := m.images[m.bannerURL()]; ok && m.bannerURL() != "" {
+		content = content.Push(banner)
+	} else if accent := m.accentColor(); accent != discord.NullColor && m.profile != nil {
+		content = content.Push(colorBar{rows: accentRows, style: tcell.StyleDefault.Background(tcell.NewHexColor(int32(accent)))})
+	}
+	content = content.Push(names).Push(text.Rich(body...))
+
+	box := ui.Box(content, m.cfg, true).
 		Title(ui.Label("Profile", m.cfg.Theme.Title, true)).
 		Footer(ui.Label(footer, m.cfg.Theme.Footer, true))
+	// A Nitro profile theme colors the card's border.
+	if colors := m.themeColors(); len(colors) != 0 {
+		box = box.BorderStyle(tcell.StyleDefault.Foreground(tcell.NewHexColor(int32(colors[0]))))
+	}
+	return card{Widget: box, model: m}
 }
 
-// lines returns the spans of the card's text, one paragraph after another.
-func (m Model) lines() []text.Span {
+// colorBar is a bar of a color, rows tall and as wide as it is let be.
+type colorBar struct {
+	rows  int
+	style tcell.Style
+}
+
+func (b colorBar) Size() (layout.Length, layout.Length) { return layout.Fill, layout.Fixed(b.rows) }
+
+func (b colorBar) Layout(limits layout.Limits) layout.Size {
+	return layout.Atomic(limits, layout.Fill, layout.Fixed(b.rows))
+}
+
+func (b colorBar) Draw(screen tview.Screen, area tview.Rectangle) {
+	screen.FillArea(area.X, area.Y, area.Width, area.Height, ' ', b.style)
+}
+
+func (colorBar) Handle(msg tview.Msg, _ tview.Rectangle) tview.Msg { return msg }
+
+// accentColor returns the color of the user's profile, or discord.NullColor if they have none.
+func (m Model) accentColor() discord.Color {
+	if m.profile != nil && m.profile.UserProfile.AccentColor != 0 {
+		return m.profile.UserProfile.AccentColor
+	}
+	if m.profile != nil && m.profile.User.Accent != 0 {
+		return m.profile.User.Accent
+	}
+	return discord.NullColor
+}
+
+// themeColors returns the colors of the user's Nitro profile theme, if any.
+func (m Model) themeColors() []discord.Color {
+	if m.profile == nil {
+		return nil
+	}
+	return m.profile.UserProfile.ThemeColors
+}
+
+// lines returns the spans of the card's names, shown beside the avatar, and of the rest of its text.
+func (m Model) lines() (header, body []text.Span) {
 	user := m.user
 	if m.profile != nil && m.profile.User.ID.IsValid() {
 		user = m.profile.User
@@ -157,21 +321,22 @@ func (m Model) lines() []text.Span {
 		handle += " · " + pronouns
 	}
 	builder.Write(handle, dim)
+	header = builder.Finish()
+	builder = markdown.Builder{}
 
 	if bio := m.bio(); bio != "" {
 		builder.NewLine()
-		builder.NewLine()
 		builder.Write(bio, tcell.StyleDefault)
+		builder.NewLine()
 	}
 
 	if roles := m.roleNames(member); len(roles) != 0 {
 		builder.NewLine()
-		builder.NewLine()
 		builder.Write("Roles: ", dim)
 		builder.Write(strings.Join(roles, ", "), tcell.StyleDefault)
+		builder.NewLine()
 	}
 
-	builder.NewLine()
 	builder.NewLine()
 	if member != nil && member.Joined.IsValid() {
 		builder.Write("Member since ", dim)
@@ -186,7 +351,7 @@ func (m Model) lines() []text.Span {
 		builder.Write(strconv.Itoa(len(m.profile.MutualGuilds)), tcell.StyleDefault)
 	}
 
-	return builder.Finish()
+	return header, builder.Finish()
 }
 
 // member returns the user as a member of the guild, or nil outside of one or if they are not known there.

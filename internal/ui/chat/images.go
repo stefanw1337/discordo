@@ -91,6 +91,7 @@ func (m *Model) sendImages() tview.Cmd {
 	images := images.ChangedMsg(maps.Clone(m.images))
 	var command tview.Cmd
 	m.reactionsPicker, command = m.reactionsPicker.Update(images)
+	m.profileCard, _ = m.profileCard.Update(images)
 	return cmd.Batch{command, m.updatePane(paneMessagesList, images), m.updatePane(paneComposer, images)}
 }
 
@@ -106,9 +107,16 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 		}))
 	}
 
+	attachments := m.cfg.UI.MessagesList.Attachments
+	fitted := make(map[discord.URL]images.Fit, len(msg.Previews)+len(msg.Fitted))
 	for url, size := range msg.Previews {
-		attachments := m.cfg.UI.MessagesList.Attachments
-		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, attachments.PreviewWidth, attachments.PreviewHeight)
+		fitted[url] = images.Fit{Size: size, MaxCols: attachments.PreviewWidth, MaxRows: attachments.PreviewHeight}
+	}
+	maps.Copy(fitted, msg.Fitted)
+
+	for url, fit := range fitted {
+		size := fit.Size
+		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, fit.MaxCols, fit.MaxRows)
 		width := min(uint(size.X), uint(cols)*cellWidth)
 		bounds := image.Rect(0, 0, int(width), int(uint(size.Y)*width/uint(size.X)))
 		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) tviewimage.Widget {

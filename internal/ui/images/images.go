@@ -12,6 +12,14 @@ import (
 type RequestedMsg struct {
 	Squares  map[discord.URL]uint
 	Previews map[discord.URL]image.Point
+	// Fitted are images drawn as large as they fit, without being scaled up.
+	Fitted map[discord.URL]Fit
+}
+
+// Fit is the size in pixels of an image to draw, and the most cells it may take.
+type Fit struct {
+	Size             image.Point
+	MaxCols, MaxRows uint
 }
 
 // ChangedMsg is every image by URL, blank while it loads, replacing the images before.

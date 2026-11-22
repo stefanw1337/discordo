@@ -11,8 +11,10 @@ import (
 	"github.com/ayn2op/arikawa/v3/state"
 	"github.com/ayn2op/arikawa/v3/state/store/defaultstore"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
+	"github.com/ayn2op/tview/cmd"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/vt"
 )
@@ -49,7 +51,8 @@ func newTestModel(t *testing.T) (Model, discord.User) {
 
 func cardText(m Model) string {
 	var got strings.Builder
-	for _, span := range m.lines() {
+	header, body := m.lines()
+	for _, span := range append(header, body...) {
 		got.WriteString(span.Text)
 	}
 	return got.String()
@@ -86,8 +89,9 @@ func TestModelLines(t *testing.T) {
 
 		// The bio and pronouns set for the guild come first.
 		profile.GuildMemberProfile = &struct {
-			Bio      string `json:"bio"`
-			Pronouns string `json:"pronouns"`
+			Bio      string       `json:"bio"`
+			Pronouns string       `json:"pronouns"`
+			Banner   discord.Hash `json:"banner"`
 		}{Bio: "guild bio", Pronouns: "they/them"}
 		if got := cardText(m); !strings.Contains(got, "guild bio") || !strings.Contains(got, "they/them") || strings.Contains(got, "own bio") {
 			t.Errorf("card %q does not prefer the guild's bio and pronouns", got)
@@ -152,5 +156,59 @@ func TestModelView(t *testing.T) {
 		if !strings.Contains(drawn.String(), want) {
 			t.Errorf("%q is not drawn in:\n%s", want, drawn.String())
 		}
+	}
+}
+
+func TestModelCloses(t *testing.T) {
+	m, _ := newTestModel(t)
+	area := tview.Rectangle{X: 10, Y: 5, Width: Width, Height: 12}
+	view := m.View()
+
+	for _, key := range []tview.KeyMsg{
+		tcell.NewEventKey(tcell.KeyEscape, "", tcell.ModNone),
+		tcell.NewEventKey(tcell.KeyRune, "q", tcell.ModNone),
+		tcell.NewEventKey(tcell.KeyEnter, "", tcell.ModNone),
+	} {
+		if got := view.Handle(key, area); got != (CancelMsg{}) {
+			t.Errorf("%s: got %#v, want the card closed", keybindName(key), got)
+		}
+	}
+
+	inside := tview.MouseMsg{EventMouse: tcell.NewEventMouse(12, 6, tcell.ButtonPrimary, tcell.ModNone), Action: tview.MouseLeftDown}
+	if got := view.Handle(inside, area); got != nil {
+		t.Fatalf("a click inside the card got through: %#v", got)
+	}
+	outside := tview.MouseMsg{EventMouse: tcell.NewEventMouse(1, 1, tcell.ButtonPrimary, tcell.ModNone), Action: tview.MouseLeftDown}
+	if got := view.Handle(outside, area); got == nil {
+		t.Fatal("a click outside the card was dropped")
+	}
+	if _, command := m.Update(outside); command == nil {
+		t.Fatal("a click outside the card did not close it")
+	}
+}
+
+func keybindName(key tview.KeyMsg) string { return key.Name() }
+
+func TestModelImages(t *testing.T) {
+	m, user := newTestModel(t)
+	profile := &Profile{User: user}
+	profile.UserProfile.Banner = "abc"
+	profile.UserProfile.ThemeColors = []discord.Color{0xFF0000, 0x00FF00}
+
+	_, command := m.Update(loadedMsg{request: m.request, profile: profile})
+	task, ok := command.(cmd.Task)
+	if !ok {
+		t.Fatal("the avatar and banner were not asked for")
+	}
+	request := task().(images.RequestedMsg)
+	if _, ok := request.Squares[m.avatarURL()]; !ok {
+		t.Errorf("the avatar %q was not asked for: %v", m.avatarURL(), request.Squares)
+	}
+	m.profile = profile
+	if fit, ok := request.Fitted[m.bannerURL()]; !ok || fit.MaxCols > Width {
+		t.Errorf("the banner %q was not asked for to fit the card: %v", m.bannerURL(), request.Fitted)
+	}
+	if !strings.Contains(m.bannerURL(), "/banners/5/abc.png") {
+		t.Errorf("banner URL = %q", m.bannerURL())
 	}
 }
