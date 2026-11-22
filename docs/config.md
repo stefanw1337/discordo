@@ -384,6 +384,12 @@ Default: `">"`
 
 Default: `"<"`
 
+### ui.messages_list.shorten_file_links
+
+Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, show only the file name. The link still opens the whole URL.
+
+Default: `true`
+
 ### ui.messages_list.image_protocol
 
 How avatars and attachment previews are drawn: "auto", "kitty" or "halfblocks".

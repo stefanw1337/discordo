@@ -39,6 +39,35 @@ func TestRendererRenderText(t *testing.T) {
 		})
 	}
 
+	t.Run("file_links", func(t *testing.T) {
+		for _, test := range []struct {
+			name    string
+			source  string
+			shorten bool
+			want    string
+		}{
+			{"autolink", "see https://cdn.discordapp.com/attachments/1/2/clip.mp4?ex=1 now", true, "see clip.mp4 now"},
+			{"escaped_name", "https://example.com/files/my%20notes.txt", true, "my notes.txt"},
+			{"not_a_file", "https://example.com/page", true, "https://example.com/page"},
+			{"version_like_path", "https://example.com/v1.2.3/", true, "https://example.com/v1.2.3/"},
+			{"off", "https://cdn.discordapp.com/attachments/1/2/clip.mp4", false, "https://cdn.discordapp.com/attachments/1/2/clip.mp4"},
+			{"named_link_kept", "[the clip](https://example.com/clip.mp4)", true, "the clip"},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				var cfg config.Config
+				cfg.UI.MessagesList.ShortenFileLinks = test.shorten
+				source := []byte(test.source)
+				var got strings.Builder
+				for _, span := range NewRenderer(&cfg).RenderText(source, md.Parse(source), tcell.StyleDefault, func(string) []text.Span { return nil }) {
+					got.WriteString(span.Text)
+				}
+				if got.String() != test.want {
+					t.Fatalf("got %q, want %q", got.String(), test.want)
+				}
+			})
+		}
+	})
+
 	t.Run("emoji", func(t *testing.T) {
 		source := []byte("hi <:cat:5> <:dog:6>")
 		// Only the emoji with ID 5 has an image.

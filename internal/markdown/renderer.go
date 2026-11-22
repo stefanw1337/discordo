@@ -1,9 +1,12 @@
 package markdown
 
 import (
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	md "github.com/ayn2op/arikawa/v3/markdown"
 	"github.com/ayn2op/discordo/internal/config"
@@ -39,6 +42,8 @@ type walker struct {
 	styles    []tview.Style
 	linkDepth int
 	listDepth int
+	// linkDest is the destination of the link being walked, or "" outside of one.
+	linkDest string
 }
 
 func (w *walker) walk(node ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -56,7 +61,12 @@ func (w *walker) enter(node ast.Node) ast.WalkStatus {
 	case *ast.Heading:
 		w.builder.Write(strings.Repeat("#", node.Level)+" ", w.style())
 	case *ast.Text:
-		w.builder.Write(string(node.Value.Bytes(w.source)), w.style())
+		text := string(node.Value.Bytes(w.source))
+		// A link whose text is its own destination shows like an autolink.
+		if w.linkDest != "" && text == w.linkDest {
+			text = w.renderer.linkText(text)
+		}
+		w.builder.Write(text, w.style())
 		switch {
 		case node.HardLineBreak():
 			w.builder.NewLine()
@@ -69,9 +79,10 @@ func (w *walker) enter(node ast.Node) ast.WalkStatus {
 		w.renderer.renderCodeBlock(w.builder, w.source, node, w.style())
 	case *ast.AutoLink:
 		url := string(node.Destination.Bytes(w.source))
-		w.builder.Write(url, tview.MergeStyle(w.style(), theme.URLStyle.Style).Url(url))
+		w.builder.Write(w.renderer.linkText(url), tview.MergeStyle(w.style(), theme.URLStyle.Style).Url(url))
 	case *ast.Link:
 		url := string(node.Destination.Bytes(w.source))
+		w.linkDest = url
 		w.linkDepth++
 		w.pushStyle(tview.MergeStyle(w.style(), theme.URLStyle.Style).Url(url))
 	case *ast.List:
@@ -107,6 +118,7 @@ func (w *walker) exit(node ast.Node) {
 			w.builder.NewLine()
 		}
 	case *ast.Link:
+		w.linkDest = ""
 		w.linkDepth--
 		w.popStyle()
 	case *ast.List:
@@ -116,6 +128,45 @@ func (w *walker) exit(node ast.Node) {
 			w.popStyle()
 		}
 	}
+}
+
+// linkText returns what a link to url shows: the file name when ShortenFileLinks is set and url names a file, otherwise url.
+// The link itself still opens url.
+func (r *Renderer) linkText(url string) string {
+	if !r.cfg.UI.MessagesList.ShortenFileLinks {
+		return url
+	}
+
+	if name, ok := FileLinkName(url); ok {
+		return name
+	}
+	return url
+}
+
+// FileLinkName returns the file name at the end of raw's path, and whether raw looks like a link to a file:
+// it has a host, its path does not end in a slash, and its last path segment has an extension of 1 to 7 letters or digits.
+func FileLinkName(raw string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	// A path ending in a slash names a directory, not a file.
+	if err != nil || parsed.Host == "" || parsed.Path == "" || strings.HasSuffix(parsed.Path, "/") {
+		return "", false
+	}
+
+	name, err := url.PathUnescape(path.Base(parsed.Path))
+	if err != nil || name == "" || name == "." || name == "/" {
+		return "", false
+	}
+
+	ext := path.Ext(name)
+	if len(ext) < 2 || len(ext) > 8 || name == ext {
+		return "", false
+	}
+	for _, r := range ext[1:] {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return "", false
+		}
+	}
+	return name, true
 }
 
 func (w *walker) writeEmoji(node *md.Emoji) {

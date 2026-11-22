@@ -179,6 +179,9 @@ type (
 		ReplyIndicator     string `toml:"reply_indicator"`
 		ForwardedIndicator string `toml:"forwarded_indicator"`
 
+		// Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, show only the file name. The link still opens the whole URL.
+		ShortenFileLinks bool `toml:"shorten_file_links"`
+
 		// How avatars and attachment previews are drawn: "auto", "kitty" or "halfblocks".
 		ImageProtocol string `toml:"image_protocol"`
 
@@ -286,6 +289,7 @@ func defaultUI() UIConfig {
 			Spacing:            1,
 			ReplyIndicator:     ">",
 			ForwardedIndicator: "<",
+			ShortenFileLinks:   true,
 			ImageProtocol:      "auto",
 			Attachments:        attachments,
 			Avatars:            AvatarsUIConfig{Preview: true, Height: 2},
