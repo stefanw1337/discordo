@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -29,6 +31,16 @@ var DefaultPlayerArgs = []string{
 	"--untimed",
 	"--cache=no",
 	"--hwdec=auto-safe",
+}
+
+// PlatformArgs returns the arguments the player at path needs on this system, before any it is given. On Windows, mpv's
+// default flip-model presentation lets a fullscreen video freeze while another screen is used, as Windows stops
+// showing its frames, though its sound plays on, so mpv presents the older way there.
+func PlatformArgs(path string) []string {
+	if runtime.GOOS != "windows" || !strings.Contains(strings.ToLower(filepath.Base(path)), "mpv") {
+		return nil
+	}
+	return []string{"--d3d11-flip=no"}
 }
 
 // player is a running player of a stream's video in one codec.
@@ -61,7 +73,7 @@ func startPlayer(cfg PlayerConfig, codec, title string) (*player, error) {
 		return nil, fmt.Errorf("cannot play %s", codec)
 	}
 
-	args := append([]string{}, cfg.Args...)
+	args := append(PlatformArgs(cfg.Path), cfg.Args...)
 	if cfg.Path == "mpv" || filepathBase(cfg.Path) == "mpv" || filepathBase(cfg.Path) == "mpv.exe" {
 		args = append(args, "--demuxer-lavf-format="+format, "--title="+title, "-")
 	} else {

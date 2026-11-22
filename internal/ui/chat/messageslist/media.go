@@ -47,7 +47,7 @@ func (m Model) viewMedia(url, name string) tview.Cmd {
 	}
 
 	return cmd.Task(func() tview.Msg {
-		args := append([]string{}, mediaViewerArgs...)
+		args := append(stream.PlatformArgs(player), mediaViewerArgs...)
 		if name != "" {
 			args = append(args, "--title="+name)
 		}
