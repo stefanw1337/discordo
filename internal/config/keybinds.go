@@ -139,6 +139,9 @@ type GuildsTreeKeybinds struct {
 	DecreaseVolume Keybind `toml:"decrease_volume"`
 	// Mute the highlighted voice member, or unmute them to 100% if they are.
 	ToggleMemberMute Keybind `toml:"toggle_member_mute"`
+	// Watch the Go Live stream of the highlighted voice member, in the voice channel joined, or stop watching it.
+	// The video plays in the player set in stream.player.
+	WatchStream Keybind `toml:"watch_stream"`
 }
 
 type MessagesListKeybinds struct {
@@ -362,6 +365,7 @@ func defaultKeybinds() Keybinds {
 			IncreaseVolume:       key("volume up", ">"),
 			DecreaseVolume:       key("volume down", "<"),
 			ToggleMemberMute:     key("mute", "0"),
+			WatchStream:          key("watch stream", "w"),
 		},
 		MembersTree: tree,
 		MessagesList: MessagesListKeybinds{

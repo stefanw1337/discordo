@@ -575,6 +575,21 @@ How much louder or quieter, in percent, a voice member is played per keypress.
 
 Default: `10`
 
+# stream
+
+## stream.player
+
+The program that plays a stream's video, which it is given on its standard input. mpv is recommended: it
+is given the format and a title, and opens a window of its own.
+
+Default: `"mpv"`
+
+## stream.player_args
+
+The arguments the player is started with. Those of mpv play with little delay, decoding on the GPU where it can.
+
+Default: `["--no-terminal", "--force-window=immediate", "--profile=low-latency", "--untimed", "--cache=no", "--hwdec=auto-safe"]`
+
 # icons
 
 ## icons.guild_category
@@ -626,6 +641,16 @@ Default: `" (muted)"`
 ## icons.voice_deafened
 
 Default: `" (deafened)"`
+
+## icons.voice_streaming
+
+Shown after the members of a voice channel who are streaming, and the one being watched.
+
+Default: `" LIVE"`
+
+## icons.voice_watching
+
+Default: `" (watching)"`
 
 # keybinds
 
@@ -860,6 +885,13 @@ Default: `"<"`
 Mute the highlighted voice member, or unmute them to 100% if they are.
 
 Default: `"0"`
+
+### keybinds.guilds_tree.watch_stream
+
+Watch the Go Live stream of the highlighted voice member, in the voice channel joined, or stop watching it.
+The video plays in the player set in stream.player.
+
+Default: `"w"`
 
 ## keybinds.members_tree
 

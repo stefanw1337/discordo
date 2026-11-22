@@ -98,6 +98,15 @@ type (
 		VolumeStep int `toml:"volume_step"`
 	}
 
+	// Stream is how Go Live streams of others are watched.
+	Stream struct {
+		// The program that plays a stream's video, which it is given on its standard input. mpv is recommended: it
+		// is given the format and a title, and opens a window of its own.
+		Player string `toml:"player"`
+		// The arguments the player is started with. Those of mpv play with little delay, decoding on the GPU where it can.
+		PlayerArgs []string `toml:"player_args"`
+	}
+
 	Icons struct {
 		GuildCategory   string `toml:"guild_category"`
 		GuildText       string `toml:"guild_text"`
@@ -115,6 +124,9 @@ type (
 		// Shown after the members of a voice channel who are muted or deafened.
 		VoiceMuted    string `toml:"voice_muted"`
 		VoiceDeafened string `toml:"voice_deafened"`
+		// Shown after the members of a voice channel who are streaming, and the one being watched.
+		VoiceStreaming string `toml:"voice_streaming"`
+		VoiceWatching  string `toml:"voice_watching"`
 	}
 
 	PickerConfig struct {
@@ -211,9 +223,10 @@ type (
 		Composer    ComposerConfig `toml:"composer"`
 
 		// Layout and behavior of the widgets.
-		UI    UIConfig `toml:"ui"`
-		Voice Voice    `toml:"voice"`
-		Icons Icons    `toml:"icons"`
+		UI     UIConfig `toml:"ui"`
+		Voice  Voice    `toml:"voice"`
+		Stream Stream   `toml:"stream"`
+		Icons  Icons    `toml:"icons"`
 
 		// Global shortcuts. A keybind is a key such as "ctrl+k", or a list of keys.
 		Keybinds Keybinds `toml:"keybinds"`
@@ -256,6 +269,10 @@ func Default() Config {
 
 		UI:    defaultUI(),
 		Voice: Voice{Sensitivity: -40, Volume: 100, VolumeStep: 10},
+		Stream: Stream{
+			Player:     "mpv",
+			PlayerArgs: []string{"--no-terminal", "--force-window=immediate", "--profile=low-latency", "--untimed", "--cache=no", "--hwdec=auto-safe"},
+		},
 		Icons: Icons{
 			GuildText:       "#",
 			GuildVoice:      "♪ ",
@@ -269,8 +286,10 @@ func Default() Config {
 			GuildForum:        "≡ ",
 			GuildStore:        "s-",
 
-			VoiceMuted:    " (muted)",
-			VoiceDeafened: " (deafened)",
+			VoiceMuted:     " (muted)",
+			VoiceDeafened:  " (deafened)",
+			VoiceStreaming: " LIVE",
+			VoiceWatching:  " (watching)",
 		},
 
 		Keybinds: defaultKeybinds(),

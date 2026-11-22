@@ -98,6 +98,7 @@ func (m Model) ShortHelp() []keybind.Keybind {
 	shortHelp := append(uitree.SelectHelp(m.root, m.current, cfg.TreeKeybinds), m.selectCurrentKeybind())
 	shortHelp = append(shortHelp, m.toggleVoiceKeybinds()...)
 	shortHelp = append(shortHelp, m.volumeKeybinds()...)
+	shortHelp = append(shortHelp, m.watchKeybinds()...)
 	if m.canCollapseParent(m.current) {
 		shortHelp = append(shortHelp, cfg.CollapseParentNode.Keybind)
 	}
@@ -115,7 +116,7 @@ func (m Model) FullHelp() [][]keybind.Keybind {
 		selectGroup,
 		{cfg.SelectPreviousUnread.Keybind, cfg.SelectNextUnread.Keybind, cfg.MarkRead.Keybind, m.favoriteKeybind()},
 		append([]keybind.Keybind{cfg.YankID.Keybind}, m.toggleVoiceKeybinds()...),
-		m.volumeKeybinds(),
+		append(m.volumeKeybinds(), m.watchKeybinds()...),
 	}
 }
 

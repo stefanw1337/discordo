@@ -11,6 +11,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/gateway"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/stream"
 	"github.com/ayn2op/discordo/internal/ui"
 	uitree "github.com/ayn2op/discordo/internal/ui/tree"
 	"github.com/ayn2op/discordo/internal/voice"
@@ -45,6 +46,8 @@ type Model struct {
 	cfg          *config.Config
 	state        *ningen.State
 	voiceSession *voice.Session
+	// watcher watches the Go Live stream of a member of the voice channel joined.
+	watcher *stream.Watcher
 
 	// guildNodes and channelNodes index the nodes for frequent event handlers (read updates, picker navigation).
 	// They mirror the current rendered tree and are rebuilt on READY before nodes are added.
@@ -63,7 +66,7 @@ type Model struct {
 }
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
-	return Model{
+	m := Model{
 		root:         tree.NewNode(""),
 		cfg:          cfg,
 		state:        state,
@@ -74,6 +77,8 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 		favorites:     loadFavorites(defaultFavoritesPath()),
 		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
 	}
+	m.watcher = newWatcher(m)
+	return m
 }
 
 // CurrentNode returns the selected node, or nil for none.
@@ -402,7 +407,7 @@ func (m Model) voiceMarkers(state discord.VoiceState) (markers string) {
 		markers += m.cfg.Icons.VoiceDeafened
 	}
 
-	return markers
+	return markers + m.streamMarkers(state)
 }
 
 // styleVoiceMembers shows who is speaking in the voice channel joined.
@@ -420,6 +425,15 @@ func (m Model) styleVoiceMembers() {
 
 		setNodeNameStyle(member, style)
 	}
+}
+
+// footer returns the state of the voice channel joined and of the stream watched in it, or "" if there is none.
+func (m Model) footer() string {
+	voice, stream := m.voiceFooter(), m.streamFooter()
+	if voice == "" || stream == "" {
+		return voice + stream
+	}
+	return voice + " · " + stream
 }
 
 // voiceFooter returns the state of the voice channel joined or being joined and of the user in it, or "" if there is none.
@@ -900,6 +914,11 @@ var _ tview.Model[Model] = Model{}
 
 // Init waits for who is speaking or the state of the voice channel joined to change.
 func (m Model) Init() tview.Cmd {
+	return cmd.Batch{m.listenVoice(), m.listenStream()}
+}
+
+// listenVoice waits for the status of the voice session to change.
+func (m Model) listenVoice() tview.Cmd {
 	return cmd.Task(func() tview.Msg {
 		<-m.voiceSession.Updates()
 		return VoiceMsg{}
@@ -931,7 +950,15 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case VoiceMsg:
 		m.styleVoiceMembers()
-		return m, m.Init()
+		// A stream is watched only from the voice channel it is in.
+		if status := m.watcher.Status(); status.Watching {
+			if _, channelID, _, err := status.Key.Parse(); err == nil && m.voiceSession.Status().ChannelID != channelID {
+				m.watcher.Stop()
+			}
+		}
+		return m, m.listenVoice()
+	case StreamMsg:
+		return m, m.streamChanged()
 
 	case NavigateMsg:
 		return m, m.navigate(msg.ChannelID)
@@ -984,6 +1011,11 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.DecreaseVolume.Keybind):
 			m.setVolume(m.current, func(volume int) int { return volume - m.cfg.Voice.VolumeStep })
 			return m, nil
+		case keybind.Matches(msg, keybinds.WatchStream.Keybind):
+			if m.current != nil {
+				return m, m.toggleWatch(m.current)
+			}
+			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleMemberMute.Keybind):
 			m.setVolume(m.current, func(volume int) int {
 				if volume == 0 {
@@ -1021,5 +1053,5 @@ func (m Model) View() tview.Widget {
 		onSelect,
 	).
 		Title(ui.Label("Guilds", m.cfg.Theme.Title, m.focused)).
-		Footer(ui.Label(m.voiceFooter(), m.cfg.Theme.Footer, m.focused))
+		Footer(ui.Label(m.footer(), m.cfg.Theme.Footer, m.focused))
 }
