@@ -133,3 +133,15 @@ func TestSelectionKeepsImageColors(t *testing.T) {
 		t.Fatal("the text of the selected message was not highlighted")
 	}
 }
+
+func TestReactionClick(t *testing.T) {
+	ml := newTestModel(t, testConfig(t))
+	message := discord.Message{ID: 2, ChannelID: 1, Reactions: []discord.Reaction{{Count: 1, Me: true, Emoji: discord.Emoji{Name: "👍"}}}}
+	view := ml.reactionsView(message, nil)
+	area := tview.Rectangle{Width: 20, Height: 1}
+	press := tview.MouseMsg{EventMouse: tcell.NewEventMouse(0, 0, tcell.ButtonPrimary, tcell.ModNone), Action: tview.MouseLeftDown}
+	want := toggleReactionMsg{channelID: 1, messageID: 2, emoji: "👍", added: true}
+	if got := view.Handle(press, area); got != want {
+		t.Fatalf("clicking a reaction = %#v, want %#v", got, want)
+	}
+}

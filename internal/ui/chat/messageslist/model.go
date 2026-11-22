@@ -345,7 +345,7 @@ func (m Model) itemView(item *messageItem) tview.Widget {
 	}
 
 	if m.cfg.UI.MessagesList.Reactions.Enabled && !m.blocked(message.Author) {
-		body = body.Push(m.reactionsView(message.Reactions, m.reactorNamesOf(message.ID)))
+		body = body.Push(m.reactionsView(*message, m.reactorNamesOf(message.ID)))
 	}
 
 	if message.Thread != nil && !m.blocked(message.Author) {
@@ -809,6 +809,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m.runAction(func(keybinds ...keybind.Keybind) bool { return slices.ContainsFunc(keybinds, msg.is) })
 	case viewMediaMsg:
 		return m, m.viewMedia(msg.url, msg.name)
+	case toggleReactionMsg:
+		return m, m.toggleReaction(msg)
 	case menuMsg:
 		if int(msg) < 0 || int(msg) >= len(m.items) {
 			return m, nil

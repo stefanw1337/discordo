@@ -12,6 +12,7 @@ import (
 	"github.com/ayn2op/discordo/internal/markdown"
 	"github.com/ayn2op/discordo/internal/ui/emojis"
 	"github.com/ayn2op/tview"
+	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/layout"
 	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
@@ -82,7 +83,9 @@ func (m Model) writeMessage(builder *markdown.Builder, message discord.Message, 
 
 // reactionsView returns the reactions wrapped to the width of the message, with the image of each custom emoji that has one before its name, or nil if there are none.
 // Each reaction that reactors names the users of is followed by them.
-func (m Model) reactionsView(reactions []discord.Reaction, reactors map[discord.APIEmoji][]string) tview.Widget {
+// Clicking a reaction adds the user's own of it, or takes it back if they have one.
+func (m Model) reactionsView(message discord.Message, reactors map[discord.APIEmoji][]string) tview.Widget {
+	reactions := message.Reactions
 	if len(reactions) == 0 {
 		return nil
 	}
@@ -113,10 +116,39 @@ func (m Model) reactionsView(reactions []discord.Reaction, reactors map[discord.
 		if hasImage {
 			chip = row.New(emoji, chip).Spacing(1).Width(layout.Shrink).Height(layout.Shrink)
 		}
-		chips[index] = chip
+		chips[index] = clickable{Widget: chip, msg: toggleReactionMsg{message.ChannelID, message.ID, reaction.Emoji.APIString(), reaction.Me}}
 	}
 
 	return row.New(chips...).Height(layout.Shrink).Wrap()
+}
+
+// toggleReactionMsg asks to add the user's reaction of emoji to the message, or to take it back if added is set.
+type toggleReactionMsg struct {
+	channelID discord.ChannelID
+	messageID discord.MessageID
+	emoji     discord.APIEmoji
+	added     bool
+}
+
+func (toggleReactionMsg) isMsg() {}
+
+// toggleReaction adds or takes back the user's reaction as msg asks. It is shown once the gateway reports it.
+func (m Model) toggleReaction(msg toggleReactionMsg) tview.Cmd {
+	if m.channel == nil {
+		return nil
+	}
+	return cmd.Task(func() tview.Msg {
+		var err error
+		if msg.added {
+			err = m.state.Unreact(msg.channelID, msg.messageID, msg.emoji)
+		} else {
+			err = m.state.React(msg.channelID, msg.messageID, msg.emoji)
+		}
+		if err != nil {
+			slog.Error("failed to toggle reaction", "channel_id", msg.channelID, "message_id", msg.messageID, "emoji", msg.emoji, "err", err)
+		}
+		return nil
+	})
 }
 
 // reactionLabel returns the count of reaction, after the name of its emoji unless its image is shown alone.
