@@ -224,7 +224,7 @@ func (m Model) isSixel(name string) bool {
 	}
 	// Windows Terminal shows sixels, as do the other terminals that run programs in a pseudoconsole on Windows, but
 	// does not always pass WT_SESSION on, as when it is Windows' default terminal.
-	if os.Getenv("WT_SESSION") != "" || (runtime.GOOS == "windows" && !winterm.OldConsole()) {
+	if os.Getenv("WT_SESSION") != "" || (runtime.GOOS == "windows" && winterm.Console() == "PseudoConsoleWindow") {
 		return true
 	}
 	for _, terminal := range sixelTerminals {

@@ -22,7 +22,12 @@ func Load(path string, level slog.Level) (io.Closer, error) {
 		return nil, err
 	}
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	// A discordo that opened itself in Windows Terminal adds to the log of the one that opened it.
+	flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	if os.Getenv("DISCORDO_RELAUNCHED") != "" {
+		flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+	}
+	file, err := os.OpenFile(path, flags, os.ModePerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
