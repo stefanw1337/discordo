@@ -155,6 +155,15 @@ func TestModelUpdate(t *testing.T) {
 		})
 	}
 
+	t.Run("text the terminal pastes", func(t *testing.T) {
+		c, _ := newTestModel(t)
+		c.setText("a ", 2)
+		*c, _ = c.Update(tview.PasteMsg("pasted"))
+		if c.text != "a pasted" {
+			t.Fatalf("text = %q, want %q", c.text, "a pasted")
+		}
+	})
+
 	t.Run("images before completing", func(t *testing.T) {
 		c, _ := newTestModel(t)
 		c.Update(images.ChangedMsg{"cat": tviewimage.New(image.NewAlpha(image.Rect(0, 0, 2, 2)))})

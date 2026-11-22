@@ -575,10 +575,16 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	switch msg := msg.(type) {
 	case RefreshAutocompleteMsg:
 		return m, m.showAutocomplete()
+	case tview.PasteMsg:
+		// Text the terminal pasted itself, as Windows Terminal does on ctrl+v.
+		m.insert(string(msg))
+		return m, cmd.Batch{m.sendTyping(), m.showAutocomplete()}
 	case imagePastedMsg:
 		if len(msg) == 0 {
+			slog.Info("no image on the clipboard to paste")
 			return m, nil
 		}
+		slog.Info("pasted an image", "bytes", len(msg))
 		m.attach(imageAttachmentName, bytes.NewReader(msg))
 		return m, nil
 	case filesPickedMsg:
@@ -612,6 +618,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.EditLast.Keybind) && m.canEditLastMessage():
 			return m, editLastMessage()
 		case keybind.Matches(msg, keybinds.Paste.Keybind):
+			slog.Info("paste")
 			m.pasteText()
 			return m, pasteImage()
 		case keybind.Matches(msg, keybinds.Send.Keybind):
