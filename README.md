@@ -2,6 +2,11 @@
 
 Discordo is a lightweight, secure, and feature-rich Discord terminal client.
 
+> [!NOTE]
+> This is [stefanw1337](https://github.com/stefanw1337)'s fork, built on [BalajiLeninrajan/discordo](https://github.com/BalajiLeninrajan/discordo). It adds watching others' Go Live streams (video in [mpv](https://mpv.io), audio with the voice channel), a profile card, a mentions inbox, favorite channels, a message menu on right-click, sticker labels and more. Ready-to-run files for Windows, Linux, macOS and Android (Termux) are on the [releases page](https://github.com/stefanw1337/discordo/releases): download the one for your system, unpack it and run `discordo`.
+>
+> To watch streams, install mpv and make sure it is in your `PATH`, or set `stream.player` in the config to where it is. Join the voice channel, select the member marked LIVE and press `w`.
+
 ![Preview](.github/preview.png)
 ![Picker](.github/picker.png)
 

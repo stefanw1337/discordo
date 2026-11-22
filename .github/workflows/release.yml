@@ -1,0 +1,92 @@
+name: release
+
+# Pushing a tag such as v2026.11.1 builds ready-to-run files for every platform and publishes them as a GitHub
+# release, so that nobody has to build discordo to use it.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Built on the oldest Ubuntu runners, so that the binaries run on older distributions too.
+          - { os: ubuntu-22.04, name: linux_x86_64 }
+          - { os: ubuntu-22.04-arm, name: linux_arm64 }
+          - { os: windows-latest, name: windows_x86_64 }
+          - { os: windows-11-arm, name: windows_arm64 }
+          - { os: macos-latest, name: macos_arm64 }
+          - { os: macos-26-intel, name: macos_x86_64 }
+          # For Termux. Voice needs the audio libraries of a desktop, so this one is text, images and streams' video.
+          - { os: ubuntu-24.04, name: android_arm64, android: true }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # Voice support requires a C compiler, and the one on this runner targets x64.
+      - if: ${{ matrix.os == 'windows-11-arm' }}
+        run: |
+          C:\msys64\usr\bin\pacman -Sy --noconfirm mingw-w64-clang-aarch64-clang
+          echo "C:\msys64\clangarm64\bin" >> $env:GITHUB_PATH
+          echo "CC=clang" >> $env:GITHUB_ENV
+
+      - name: Build
+        if: ${{ !matrix.android }}
+        shell: bash
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags=-s -o "dist/discordo$([ "$RUNNER_OS" = Windows ] && echo .exe)" .
+
+      # The clipboard needs cgo on Android, so the NDK's compiler builds it.
+      - name: Build for Android
+        if: ${{ matrix.android }}
+        run: |
+          mkdir -p dist
+          CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" \
+          CGO_ENABLED=1 GOOS=android GOARCH=arm64 \
+            go build -trimpath -ldflags=-s -tags no_voice -o dist/discordo .
+
+      - name: Package
+        shell: bash
+        run: |
+          cp README.md LICENSE dist/
+          archive="discordo_${GITHUB_REF_NAME}_${{ matrix.name }}"
+          if [ "$RUNNER_OS" = Windows ]; then
+            (cd dist && 7z a -tzip "../$archive.zip" .)
+          else
+            tar -czf "$archive.tar.gz" -C dist .
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: discordo_*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+      - name: Checksums
+        run: sha256sum discordo_* > SHA256SUMS.txt
+      # A tag with a hyphen, such as v2026.11.1-test, is published as a pre-release.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes $prerelease \
+            discordo_* SHA256SUMS.txt
