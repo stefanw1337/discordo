@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"image"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/gateway"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/vt"
 )
 
 func newTestModel(t *testing.T) *Model {
@@ -170,4 +173,39 @@ func TestModelReloadImages(t *testing.T) {
 			}
 		})
 	})
+}
+
+func TestModelProfileCard(t *testing.T) {
+	m := newTestModel(t)
+	*m, _ = m.Update(profilecard.OpenMsg{User: discord.User{ID: 5, Username: "ola"}})
+	if m.overlay != overlayProfileCard {
+		t.Fatal("the profile card did not open")
+	}
+
+	width, height := 100, 30
+	screen, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: vt.Col(width), Y: vt.Row(height)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	m.View().Draw(screen, tview.Rectangle{Width: width, Height: height})
+	var drawn strings.Builder
+	for y := range height {
+		for x := range width {
+			str, _, _ := screen.Get(x, y)
+			drawn.WriteString(str)
+		}
+		drawn.WriteByte('\n')
+	}
+	if !strings.Contains(drawn.String(), "@ola") {
+		t.Errorf("the card is not drawn:\n%s", drawn.String())
+	}
+
+	*m, _ = m.Update(profilecard.CancelMsg{})
+	if m.overlay != overlayNone {
+		t.Fatal("the profile card did not close")
+	}
 }

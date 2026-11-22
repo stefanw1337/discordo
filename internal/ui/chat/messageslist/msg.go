@@ -9,6 +9,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/gateway"
 	"github.com/ayn2op/discordo/internal/ui"
+	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/viewport"
@@ -51,6 +52,16 @@ func (m Model) showReactions() tview.Cmd {
 		return nil
 	}
 	msg := ShowReactionsMsg{m.channel.GuildID, message.ChannelID, message.ID}
+	return cmd.Task(func() tview.Msg { return msg })
+}
+
+func (m Model) showProfile() tview.Cmd {
+	message, ok := m.selectedMessage()
+	// Webhooks have no profile.
+	if !ok || m.channel == nil || message.WebhookID.IsValid() {
+		return nil
+	}
+	msg := profilecard.OpenMsg{User: message.Author, GuildID: m.channel.GuildID}
 	return cmd.Task(func() tview.Msg { return msg })
 }
 

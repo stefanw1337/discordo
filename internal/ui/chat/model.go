@@ -29,6 +29,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/memberstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/messagesearch"
 	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
+	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/chat/reactionspicker"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/ningen/v3"
@@ -68,6 +69,8 @@ type Model struct {
 	messageSearch messagesearch.Model
 	// forumPosts lists, searches and starts the posts of a forum.
 	forumPosts forumposts.Model
+	// profileCard shows the profile of a user.
+	profileCard profilecard.Model
 
 	selectedChannel *discord.Channel
 	// windowUnfocused reports whether the terminal window lost focus.
@@ -136,6 +139,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.reactionsPicker = reactionspicker.NewModel(cfg, m.state)
 	m.messageSearch = messagesearch.NewModel(cfg, m.state)
 	m.forumPosts = forumposts.NewModel(cfg, m.state)
+	m.profileCard = profilecard.NewModel(cfg, m.state)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -159,6 +163,7 @@ const (
 	overlayReactionsPicker
 	overlayMessageSearch
 	overlayForumPosts
+	overlayProfileCard
 )
 
 // pickerView returns the view of the picker shown on top, or nil if none is open.
@@ -174,6 +179,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.messageSearch.View()
 	case overlayForumPosts:
 		return m.forumPosts.View()
+	case overlayProfileCard:
+		return m.profileCard.View()
 	default:
 		return nil
 	}
@@ -327,6 +334,12 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case reactionspicker.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
+	case profilecard.OpenMsg:
+		m.overlay = overlayProfileCard
+		return m, m.profileCard.Open(msg.User, msg.GuildID)
+	case profilecard.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
 	case messageslist.OpenThreadMsg:
 		return m, m.openThread(msg.Thread)
 	case messageslist.SearchMsg:
@@ -455,6 +468,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.messageSearch, cmd = m.messageSearch.Update(msg)
 	case overlayForumPosts:
 		m.forumPosts, cmd = m.forumPosts.Update(msg)
+	case overlayProfileCard:
+		m.profileCard, cmd = m.profileCard.Update(msg)
 	default:
 		cmd = m.updatePane(m.focused, msg)
 	}
@@ -652,10 +667,15 @@ func (m Model) View() tview.Widget {
 	if picker == nil {
 		return main
 	}
+	width, height := layout.Fixed(m.cfg.Picker.Width), layout.Fixed(m.cfg.Picker.Height)
+	// The profile card is as tall as what it shows.
+	if m.overlay == overlayProfileCard {
+		width, height = layout.Fixed(profilecard.Width), layout.Shrink
+	}
 	return stack.New(
 		// The panes behind the picker take no input.
 		inert.New(main),
 		backdrop.New().Style(m.cfg.Theme.Dialog.BackgroundStyle.Style),
-		center.New(column.New(picker).Width(layout.Fixed(m.cfg.Picker.Width)).Height(layout.Fixed(m.cfg.Picker.Height))),
+		center.New(column.New(picker).Width(width).Height(height)),
 	)
 }

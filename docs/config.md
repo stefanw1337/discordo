@@ -1033,6 +1033,12 @@ Show or hide who reacted to the selected message, after each of its reactions.
 
 Default: `"w"`
 
+### keybinds.messages_list.open_profile
+
+Show the profile of the author of the selected message.
+
+Default: `"P"`
+
 ### keybinds.messages_list.download
 
 Download one of the selected message's attachments.

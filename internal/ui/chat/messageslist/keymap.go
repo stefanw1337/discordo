@@ -87,6 +87,9 @@ func (m Model) messageHelp(message discord.Message) (actions, manage, attachment
 	if len(message.Reactions) != 0 {
 		actions = append(actions, keybinds.WhoReacted.Keybind)
 	}
+	if !message.WebhookID.IsValid() {
+		actions = append(actions, keybinds.OpenProfile.Keybind)
+	}
 
 	if mine {
 		manage = append(manage, keybinds.Edit.Keybind)

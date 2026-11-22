@@ -834,6 +834,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, m.showReactions()
 		case keybind.Matches(msg, keybinds.WhoReacted.Keybind):
 			return m, m.toggleReactors()
+		case keybind.Matches(msg, keybinds.OpenProfile.Keybind):
+			return m, m.showProfile()
 		case keybind.Matches(msg, keybinds.Reply.Keybind):
 			return m, m.reply(false)
 		case keybind.Matches(msg, keybinds.ReplyMention.Keybind):

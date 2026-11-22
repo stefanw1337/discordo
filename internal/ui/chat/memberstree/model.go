@@ -11,9 +11,11 @@ import (
 	"github.com/ayn2op/arikawa/v3/state"
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/discordo/internal/ui"
+	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	uitree "github.com/ayn2op/discordo/internal/ui/tree"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
+	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/keybind"
 	"github.com/ayn2op/tview/text"
 	"github.com/ayn2op/tview/tree"
@@ -336,7 +338,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		if isGroup(msg.node) {
 			msg.node.SetExpanded(!msg.node.Expanded())
 		}
-		return m, m.requestSelectedMembers()
+		return m, cmd.Batch{m.requestSelectedMembers(), m.openProfile(msg.node)}
 	case tview.KeyMsg:
 		keybinds := m.cfg.Keybinds.MembersTree
 		switch {
@@ -359,6 +361,30 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	}
 
 	return m, nil
+}
+
+// openProfile asks to show the profile of the member that node is of, or returns nil if it is not one.
+func (m Model) openProfile(node *tree.Node) tview.Cmd {
+	ref, ok := node.Reference().(memberRef)
+	if !ok || m.channel == nil {
+		return nil
+	}
+
+	msg := profilecard.OpenMsg{GuildID: m.channel.GuildID}
+	if m.channel.GuildID.IsValid() {
+		member, err := m.state.Cabinet.Member(m.channel.GuildID, ref.userID)
+		if err != nil {
+			return nil
+		}
+		msg.User = member.User
+	} else {
+		index := slices.IndexFunc(m.channel.DMRecipients, func(user discord.User) bool { return user.ID == ref.userID })
+		if index == -1 {
+			return nil
+		}
+		msg.User = m.channel.DMRecipients[index]
+	}
+	return cmd.Task(func() tview.Msg { return msg })
 }
 
 // View shows the tree in a box titled Members.
