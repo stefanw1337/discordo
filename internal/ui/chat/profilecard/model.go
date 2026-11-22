@@ -72,6 +72,9 @@ const (
 	accentRows = 2
 	// bannerSize is the size of a banner in pixels, 5 by 2.
 	bannerWidth, bannerHeight = 600, 240
+	// nameplateRows is the most rows the nameplate takes, under the names, and nameplateSize its usual size.
+	nameplateRows                   = 3
+	nameplateWidth, nameplateHeight = 600, 116
 	// innerWidth is the width inside the card's borders and padding.
 	innerWidth = Width - 4
 	// cdn is where Discord keeps avatars and banners.
@@ -105,6 +108,14 @@ func (m Model) bannerURL() discord.URL {
 	return fmt.Sprintf("%s/banners/%s/%s.png?size=600", cdn, userID, banner)
 }
 
+// nameplateURL returns the still picture of the user's nameplate, or "" if they wear none.
+func (m Model) nameplateURL() discord.URL {
+	if m.profile == nil || m.profile.User.Collectibles.Nameplate == nil || m.profile.User.Collectibles.Nameplate.Asset == "" {
+		return ""
+	}
+	return cdn + "/assets/collectibles/" + m.profile.User.Collectibles.Nameplate.Asset + "static.png"
+}
+
 func (m Model) hasImage(url discord.URL) bool {
 	_, ok := m.images[url]
 	return ok
@@ -119,6 +130,9 @@ func (m Model) loadImages() tview.Cmd {
 	if url := m.bannerURL(); url != "" && !m.hasImage(url) {
 		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows}
 	}
+	if url := m.nameplateURL(); url != "" && !m.hasImage(url) {
+		request.Fitted[url] = images.Fit{Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: nameplateRows}
+	}
 	if len(request.Squares) == 0 && len(request.Fitted) == 0 {
 		return nil
 	}
@@ -127,7 +141,7 @@ func (m Model) loadImages() tview.Cmd {
 
 // Profile is the part of Discord's answer to GET /users/{id}/profile that the card shows.
 type Profile struct {
-	User        discord.User `json:"user"`
+	User        profileUser `json:"user"`
 	UserProfile struct {
 		Bio      string       `json:"bio"`
 		Pronouns string       `json:"pronouns"`
@@ -145,6 +159,18 @@ type Profile struct {
 	MutualGuilds []struct {
 		ID discord.GuildID `json:"id"`
 	} `json:"mutual_guilds"`
+}
+
+// profileUser is the user of a profile, with the collectibles they wear.
+type profileUser struct {
+	discord.User
+	Collectibles struct {
+		// Nameplate is the picture shown behind their name in member lists, a path under the CDN's collectibles.
+		Nameplate *struct {
+			Asset string `json:"asset"`
+			Label string `json:"label"`
+		} `json:"nameplate"`
+	} `json:"collectibles"`
 }
 
 // fetch asks Discord for the profile of userID, as a member of guildID if it is valid.
@@ -246,7 +272,12 @@ func (m Model) View() tview.Widget {
 	} else if accent := m.accentColor(); accent != discord.NullColor && m.profile != nil {
 		content = content.Push(colorBar{rows: accentRows, style: tcell.StyleDefault.Background(tcell.NewHexColor(int32(accent)))})
 	}
-	content = content.Push(names).Push(text.Rich(body...))
+	content = content.Push(names)
+	// The nameplate Discord shows behind the name is shown under it, as text cannot be drawn over an image.
+	if nameplate, ok := m.images[m.nameplateURL()]; ok && m.nameplateURL() != "" {
+		content = content.Push(nameplate)
+	}
+	content = content.Push(text.Rich(body...))
 
 	box := ui.Box(content, m.cfg, true).
 		Title(ui.Label("Profile", m.cfg.Theme.Title, true)).
@@ -299,7 +330,7 @@ func (m Model) themeColors() []discord.Color {
 func (m Model) lines() (header, body []text.Span) {
 	user := m.user
 	if m.profile != nil && m.profile.User.ID.IsValid() {
-		user = m.profile.User
+		user = m.profile.User.User
 	}
 
 	member := m.member()

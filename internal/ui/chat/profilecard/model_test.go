@@ -1,6 +1,7 @@
 package profilecard
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ func TestModelLines(t *testing.T) {
 
 	t.Run("loaded", func(t *testing.T) {
 		m, user := newTestModel(t)
-		profile := &Profile{User: user}
+		profile := &Profile{User: profileUser{User: user}}
 		profile.UserProfile.Bio, profile.UserProfile.Pronouns = "own bio", "he/him"
 		profile.MutualGuilds = make([]struct {
 			ID discord.GuildID `json:"id"`
@@ -112,7 +113,7 @@ func TestModelUpdate(t *testing.T) {
 	t.Run("drops a replaced request", func(t *testing.T) {
 		m, user := newTestModel(t)
 		m.request = 2
-		m, _ = m.Update(loadedMsg{request: 1, profile: &Profile{User: user}})
+		m, _ = m.Update(loadedMsg{request: 1, profile: &Profile{User: profileUser{User: user}}})
 		if m.profile != nil {
 			t.Fatal("the answer for a replaced request was kept")
 		}
@@ -129,7 +130,7 @@ func TestModelUpdate(t *testing.T) {
 
 func TestModelView(t *testing.T) {
 	m, user := newTestModel(t)
-	profile := &Profile{User: user}
+	profile := &Profile{User: profileUser{User: user}}
 	profile.UserProfile.Bio = "Lager klienter i terminalen."
 	m, _ = m.Update(loadedMsg{request: m.request, profile: profile})
 
@@ -191,7 +192,7 @@ func keybindName(key tview.KeyMsg) string { return key.Name() }
 
 func TestModelImages(t *testing.T) {
 	m, user := newTestModel(t)
-	profile := &Profile{User: user}
+	profile := &Profile{User: profileUser{User: user}}
 	profile.UserProfile.Banner = "abc"
 	profile.UserProfile.ThemeColors = []discord.Color{0xFF0000, 0x00FF00}
 
@@ -210,5 +211,21 @@ func TestModelImages(t *testing.T) {
 	}
 	if !strings.Contains(m.bannerURL(), "/banners/5/abc.png") {
 		t.Errorf("banner URL = %q", m.bannerURL())
+	}
+}
+
+func TestNameplateURL(t *testing.T) {
+	m, user := newTestModel(t)
+	if m.nameplateURL() != "" {
+		t.Fatal("a nameplate before the profile loads")
+	}
+	var profile Profile
+	if err := json.Unmarshal([]byte(`{"user":{"id":"1","collectibles":{"nameplate":{"asset":"nameplates/flags/norway/","label":"Norway"}}}}`), &profile); err != nil {
+		t.Fatal(err)
+	}
+	profile.User.User = user
+	m.profile = &profile
+	if got, want := m.nameplateURL(), "https://cdn.discordapp.com/assets/collectibles/nameplates/flags/norway/static.png"; got != want {
+		t.Fatalf("nameplateURL() = %q, want %q", got, want)
 	}
 }
