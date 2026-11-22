@@ -110,6 +110,10 @@ func (m Model) messageHelp(message discord.Message) (actions, manage, attachment
 		attachments = append(attachments, keybinds.Download.Keybind)
 	}
 
+	if m.hasMedia(message) {
+		attachments = append(attachments, keybinds.ViewMedia.Keybind)
+	}
+
 	if isVoiceMessage(message) {
 		attachments = append(attachments, keybinds.Play.Keybind)
 	}

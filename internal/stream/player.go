@@ -68,7 +68,7 @@ func startPlayer(cfg PlayerConfig, codec, title string) (*player, error) {
 		args = append(args, "-")
 	}
 
-	cmd := exec.Command(findPlayer(cfg.Path), args...)
+	cmd := exec.Command(FindPlayer(cfg.Path), args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -117,10 +117,10 @@ func (p *player) stop() {
 	})
 }
 
-// findPlayer returns where the player named path is: path itself if it is a path or is found in PATH, or else the
+// FindPlayer returns where the player named path is: path itself if it is a path or is found in PATH, or else the
 // program of that name next to discordo's own or in a folder of that name there, as the Windows releases ship mpv,
 // so that it is found without setup.
-func findPlayer(path string) string {
+func FindPlayer(path string) string {
 	if filepathBase(path) != path {
 		return path
 	}

@@ -23,11 +23,11 @@ func TestModelPreviewSources(t *testing.T) {
 			Type:      discord.ImageEmbed,
 			Image:     &discord.EmbedImage{Proxy: "i", Width: 2, Height: 1},
 			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
-		}}}, []previewSource{{"i", 2, 1}}},
+		}}}, []previewSource{{proxy: "i", width: 2, height: 1}}},
 		{"gif thumbnail", discord.Message{Embeds: []discord.Embed{{
 			Type:      discord.GIFVEmbed,
 			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
-		}}}, []previewSource{{"t", 2, 1}}},
+		}}}, []previewSource{{proxy: "t", width: 2, height: 1}}},
 		{"article thumbnail", discord.Message{Embeds: []discord.Embed{{
 			Type:      discord.ArticleEmbed,
 			Thumbnail: &discord.EmbedThumbnail{Proxy: "t", Width: 2, Height: 1},
@@ -51,7 +51,7 @@ func TestModelPreviewSources(t *testing.T) {
 				Image: &discord.EmbedImage{Proxy: "i", Width: 2, Height: 1},
 			}},
 		}
-		want := []previewSource{{"a", 2, 1}}
+		want := []previewSource{{proxy: "a", width: 2, height: 1}}
 		if got := ml.previewSources(message); !slices.Equal(got, want) {
 			t.Fatalf("previewSources() = %v, want %v", got, want)
 		}

@@ -330,7 +330,8 @@ func (m Model) itemView(item *messageItem) tview.Widget {
 
 	for _, source := range m.previewSources(*message) {
 		if preview, ok := m.images[source.proxy]; ok {
-			body = body.Push(preview)
+			// Clicking a preview shows the media at its full size.
+			body = body.Push(clickable{Widget: preview, msg: viewMediaMsg{url: source.url, name: source.name}})
 		}
 	}
 
@@ -797,6 +798,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m.runAction(func(keybinds ...keybind.Keybind) bool { return keybind.Matches(msg, keybinds...) })
 	case ActionMsg:
 		return m.runAction(func(keybinds ...keybind.Keybind) bool { return slices.ContainsFunc(keybinds, msg.is) })
+	case viewMediaMsg:
+		return m, m.viewMedia(msg.url, msg.name)
 	case menuMsg:
 		if int(msg) < 0 || int(msg) >= len(m.items) {
 			return m, nil
@@ -912,6 +915,8 @@ func (m Model) runAction(matches func(...keybind.Keybind) bool) (Model, tview.Cm
 		return m, m.showProfile()
 	case matches(keybinds.OpenMenu.Keybind):
 		return m, m.showMenu()
+	case matches(keybinds.ViewMedia.Keybind):
+		return m, m.viewSelectedMedia()
 	case matches(keybinds.Reply.Keybind):
 		return m, m.reply(false)
 	case matches(keybinds.ReplyMention.Keybind):

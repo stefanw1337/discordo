@@ -372,6 +372,12 @@ func (m Model) drawDefaultMessage(builder *markdown.Builder, message discord.Mes
 			continue
 		}
 
+		// The file name links to the file, rather than its long URL being shown after it.
+		if m.cfg.UI.MessagesList.ShortenFileLinks {
+			builder.Write(attachment.Filename, attachmentStyle.Url(attachment.URL))
+			continue
+		}
+
 		builder.Write(attachment.Filename+":", attachmentStyle)
 		builder.NewLine()
 		builder.Write(attachment.URL, attachmentStyle.Url(attachment.URL))

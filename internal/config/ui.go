@@ -182,7 +182,7 @@ type (
 		ReplyIndicator     string `toml:"reply_indicator"`
 		ForwardedIndicator string `toml:"forwarded_indicator"`
 
-		// Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, show only the file name. The link still opens the whole URL.
+		// Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, and attachments show only the file name. The link still opens the whole URL.
 		ShortenFileLinks bool `toml:"shorten_file_links"`
 
 		// How avatars and attachment previews are drawn: "auto", "kitty" or "halfblocks".
@@ -235,6 +235,10 @@ type (
 		AllowedMIMETypes MIMETypes `toml:"allowed_mime_types"`
 		// Whether to draw image attachments and embedded images below their messages.
 		Preview bool `toml:"preview"`
+		// The largest a preview is drawn, in cells. A terminal without kitty graphics draws two pixels a cell, so a
+		// larger preview shows more detail there. Clicking a preview, or view_media, shows it at its full size.
+		PreviewWidth  uint `toml:"preview_width"`
+		PreviewHeight uint `toml:"preview_height"`
 	}
 
 	EmbedsUIConfig struct {
@@ -270,6 +274,8 @@ func defaultUI() UIConfig {
 		ShowLinks:        true,
 		AllowedMIMETypes: MIMETypes{"image/*", "video/*", "audio/*"},
 		Preview:          true,
+		PreviewWidth:     60,
+		PreviewHeight:    30,
 	}
 	return UIConfig{
 		Tabs: TabsUIConfig{

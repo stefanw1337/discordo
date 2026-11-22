@@ -393,7 +393,7 @@ Default: `"<"`
 
 ### ui.messages_list.shorten_file_links
 
-Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, show only the file name. The link still opens the whole URL.
+Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, and attachments show only the file name. The link still opens the whole URL.
 
 Default: `true`
 
@@ -421,6 +421,17 @@ Default: `["image/*", "video/*", "audio/*"]`
 Whether to draw image attachments and embedded images below their messages.
 
 Default: `true`
+
+#### ui.messages_list.attachments.preview_width
+
+The largest a preview is drawn, in cells. A terminal without kitty graphics draws two pixels a cell, so a
+larger preview shows more detail there. Clicking a preview, or view_media, shows it at its full size.
+
+Default: `60`
+
+#### ui.messages_list.attachments.preview_height
+
+Default: `30`
 
 ### ui.messages_list.avatars
 
@@ -1094,6 +1105,13 @@ Default: `"m"`
 Download one of the selected message's attachments.
 
 Default: `"D"`
+
+### keybinds.messages_list.view_media
+
+Show the first image, GIF or video of the selected message at its full size, in stream.player (mpv by
+default), as clicking its preview does.
+
+Default: `"v"`
 
 ### keybinds.messages_list.play
 

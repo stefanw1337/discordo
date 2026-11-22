@@ -184,6 +184,9 @@ type MessagesListKeybinds struct {
 	OpenMenu Keybind `toml:"open_menu"`
 	// Download one of the selected message's attachments.
 	Download Keybind `toml:"download"`
+	// Show the first image, GIF or video of the selected message at its full size, in stream.player (mpv by
+	// default), as clicking its preview does.
+	ViewMedia Keybind `toml:"view_media"`
 	// Play, pause or resume the selected voice message.
 	Play Keybind `toml:"play"`
 	// Seek the voice message that is playing or paused.
@@ -391,6 +394,7 @@ func defaultKeybinds() Keybinds {
 			OpenProfile:   key("profile", "P"),
 			OpenMenu:      key("menu", "m"),
 			Download:      key("download", "D"),
+			ViewMedia:     key("view", "v"),
 			Play:          key("play", "p"),
 			SeekBackward:  key("seek back", "h", "left"),
 			SeekForward:   key("seek forward", "l", "right"),

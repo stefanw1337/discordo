@@ -160,11 +160,16 @@ func (m Model) saveAttachment(attachment discord.Attachment) tview.Cmd {
 
 func openURL(url string) tview.Cmd {
 	return cmd.Task(func() tview.Msg {
-		if err := open.Start(url); err != nil {
+		if err := openURLNow(url); err != nil {
 			return ui.ErrorDialog("open URL", err)
 		}
 		return nil
 	})
+}
+
+// openURLNow opens url in the browser.
+func openURLNow(url string) error {
+	return open.Start(url)
 }
 
 // Get requests the file at url, by a new link to it if that one expired.

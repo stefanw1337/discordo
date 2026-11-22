@@ -17,12 +17,14 @@ import (
 type previewSource struct {
 	proxy         discord.URL
 	width, height uint
+	// url is the media at its full size, and name what it is called.
+	url, name string
 }
 
 func (m Model) previewSources(message discord.Message) []previewSource {
 	var sources []previewSource
 	for _, attachment := range message.Attachments {
-		sources = append(sources, previewSource{attachment.Proxy, attachment.Width, attachment.Height})
+		sources = append(sources, previewSource{attachment.Proxy, attachment.Width, attachment.Height, attachment.URL, attachment.Filename})
 	}
 
 	embeds := message.Embeds
@@ -32,15 +34,27 @@ func (m Model) previewSources(message discord.Message) []previewSource {
 	for _, embed := range embeds {
 		switch {
 		case embed.Image != nil:
-			sources = append(sources, previewSource{embed.Image.Proxy, embed.Image.Width, embed.Image.Height})
+			sources = append(sources, previewSource{embed.Image.Proxy, embed.Image.Width, embed.Image.Height, embed.Image.URL, embed.Title})
 		// Image and GIF embeds carry the media itself as the thumbnail.
 		case embed.Thumbnail != nil && (embed.Type == discord.ImageEmbed || embed.Type == discord.GIFVEmbed):
-			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height})
+			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedMediaURL(embed), embed.Title})
 		}
 	}
 
 	// Non-image files have no dimensions.
 	return slices.DeleteFunc(sources, func(source previewSource) bool { return source.width == 0 || source.height == 0 })
+}
+
+// embedMediaURL returns the media an image or GIF embed shows: its video for a GIF, which Discord sends as one, or
+// else its full-size image.
+func embedMediaURL(embed discord.Embed) string {
+	if embed.Video != nil && embed.Video.URL != "" {
+		return embed.Video.URL
+	}
+	if embed.Thumbnail != nil && embed.Thumbnail.URL != "" {
+		return embed.Thumbnail.URL
+	}
+	return embed.URL
 }
 
 // LoadImages returns the command that loads the images of the shown messages, or nil.

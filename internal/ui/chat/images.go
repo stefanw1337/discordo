@@ -23,12 +23,6 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-// Roughly square in pixels.
-const (
-	previewWidth  = 40
-	previewHeight = 20
-)
-
 // kittyPixels is the assumed cell width when the terminal does not report it.
 const kittyPixels = 10
 
@@ -113,7 +107,8 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 	}
 
 	for url, size := range msg.Previews {
-		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight)
+		attachments := m.cfg.UI.MessagesList.Attachments
+		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, attachments.PreviewWidth, attachments.PreviewHeight)
 		width := min(uint(size.X), uint(cols)*cellWidth)
 		bounds := image.Rect(0, 0, int(width), int(uint(size.Y)*width/uint(size.X)))
 		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) tviewimage.Widget {
@@ -179,13 +174,14 @@ func squareCols(rows uint, cell image.Point) uint {
 	return rows * uint(cell.Y) / uint(cell.X)
 }
 
-// previewCols returns the width of a preview in cells.
-func previewCols(width, height, cellWidth, cellHeight uint) int {
+// previewCols returns the width in cells of a preview of an image of width by height pixels, at most maxWidth by
+// maxHeight cells.
+func previewCols(width, height, cellWidth, cellHeight, maxWidth, maxHeight uint) int {
 	// Not scaled up.
 	own := (width + cellWidth - 1) / cellWidth
 	// A tall image is not cut off.
-	tall := width * previewHeight * cellHeight / (height * cellWidth)
-	return int(max(min(own, previewWidth, tall), 1))
+	tall := width * maxHeight * cellHeight / (height * cellWidth)
+	return int(max(min(own, maxWidth, tall), 1))
 }
 
 // square centers img on a transparent square.

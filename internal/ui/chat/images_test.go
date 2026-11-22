@@ -22,7 +22,7 @@ func TestPreviewCols(t *testing.T) {
 		{"own width in cells", 200, 100, 10, 20, 20},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := previewCols(tt.width, tt.height, tt.cellWidth, tt.cellHeight); got != tt.want {
+			if got := previewCols(tt.width, tt.height, tt.cellWidth, tt.cellHeight, 40, 20); got != tt.want {
 				t.Fatalf("previewCols() = %d, want %d", got, tt.want)
 			}
 		})
