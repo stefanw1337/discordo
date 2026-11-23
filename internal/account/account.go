@@ -94,7 +94,7 @@ func Write(state *ningen.State, dir string, invites bool, configFiles []string) 
 		ExportedAt: time.Now(),
 		User:       User{ID: me.ID, Username: me.Username, GlobalName: me.DisplayName},
 	}
-	if profile, err := state.Client.RequestJSON[profileResponse]("GET", api.EndpointMe+"/profile"); err != nil {
+	if profile, err := state.RequestJSON[profileResponse]("GET", api.EndpointMe+"/profile"); err != nil {
 		slog.Error("failed to get own profile for the export", "err", err)
 	} else {
 		export.Profile = profile.UserProfile
@@ -186,7 +186,7 @@ func makeInvite(state *ningen.State, guildID discord.GuildID, me discord.UserID)
 			Unique  bool `json:"unique"`
 		}
 		// Not unique: a link made before with the same settings is given back, rather than another made.
-		invite, err := state.Client.RequestJSON[discord.Invite]("POST", api.EndpointChannels+channel.ID.String()+"/invites",
+		invite, err := state.RequestJSON[discord.Invite]("POST", api.EndpointChannels+channel.ID.String()+"/invites",
 			httputil.WithJSONBody(inviteData{}))
 		if err != nil {
 			slog.Error("failed to make invite for the export", "guild_id", guildID, "err", err)
@@ -319,7 +319,7 @@ func download(url, path string) error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return errors.New(response.Status)
 	}
@@ -328,7 +328,7 @@ func download(url, path string) error {
 		return err
 	}
 	if _, err := io.Copy(file, response.Body); err != nil {
-		file.Close()
+		_ = file.Close()
 		return err
 	}
 	return file.Close()
@@ -362,13 +362,13 @@ func Import(state *ningen.State, folder string) ([]string, error) {
 		}
 	}
 	if user != (userData{}) {
-		if err := state.Client.FastRequest("PATCH", api.EndpointMe, httputil.WithJSONBody(user)); err != nil {
+		if err := state.FastRequest("PATCH", api.EndpointMe, httputil.WithJSONBody(user)); err != nil {
 			return done, fmt.Errorf("could not set the name and avatar: %w", err)
 		}
 		done = append(done, "display name and avatar")
 	}
 	if export.Profile != (Profile{}) {
-		if err := state.Client.FastRequest("PATCH", api.EndpointMe+"/profile", httputil.WithJSONBody(export.Profile)); err != nil {
+		if err := state.FastRequest("PATCH", api.EndpointMe+"/profile", httputil.WithJSONBody(export.Profile)); err != nil {
 			return done, fmt.Errorf("could not set About me and pronouns: %w", err)
 		}
 		done = append(done, "About me and pronouns")
