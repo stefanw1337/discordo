@@ -11,3 +11,8 @@ func Console() string {
 func OldConsole() bool {
 	return false
 }
+
+// UnderWSL reports whether a Windows program was started from WSL, which it never is elsewhere.
+func UnderWSL() bool {
+	return false
+}

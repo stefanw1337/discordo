@@ -241,6 +241,9 @@ func (m Model) isKitty(name string) bool {
 	return slices.Contains(placeholderTerminals, name)
 }
 
+// underWSL reports, once, whether discordo, built for Windows, was started from WSL.
+var underWSL = sync.OnceValue(winterm.UnderWSL)
+
 // sixelTerminals show sixels, as far as their name, which the terminal reports, tells.
 var sixelTerminals = []string{"WezTerm", "foot", "mintty", "mlterm", "contour", "konsole", "Konsole", "iTerm2", "xterm"}
 
@@ -258,6 +261,10 @@ func (m Model) isSixel(name string) bool {
 	}
 	// Windows Terminal shows sixels, as do the other terminals that run programs in a pseudoconsole on Windows, but
 	// does not always pass WT_SESSION on, as when it is Windows' default terminal.
+	// A Windows build run from a WSL shell cannot: WSL drops the sequences, and the image would show as text.
+	if runtime.GOOS == "windows" && underWSL() {
+		return false
+	}
 	if os.Getenv("WT_SESSION") != "" || (runtime.GOOS == "windows" && winterm.Console() == "PseudoConsoleWindow") {
 		return true
 	}
