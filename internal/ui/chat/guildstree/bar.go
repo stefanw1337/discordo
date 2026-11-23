@@ -188,7 +188,7 @@ func (m Model) barView() bar {
 		}
 		entries[i] = entry
 	}
-	return bar{Widget: spacer.New().Width(layout.Fixed(barWidth)), entries: entries, offset: m.barOffset}
+	return bar{Widget: spacer.New().Width(layout.Fixed(barWidth)).Height(layout.Fill), entries: entries, offset: m.barOffset}
 }
 
 func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {

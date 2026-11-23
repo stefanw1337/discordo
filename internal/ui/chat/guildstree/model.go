@@ -967,6 +967,10 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	switch msg := msg.(type) {
 	case *gateway.ReadyEvent:
 		m.rebuild(msg)
+		// The bar opens on direct messages, as Discord does.
+		if m.showsBar() {
+			m.openInBar(m.dmRootNode)
+		}
 		return m, m.LoadImages()
 	case images.ChangedMsg:
 		m.setImages(msg)

@@ -2,6 +2,7 @@ package guildstree
 
 import (
 	"image"
+	"strings"
 	"testing"
 
 	"github.com/ayn2op/arikawa/v3/discord"
@@ -12,10 +13,12 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/ningen/v3"
+	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/vt"
 )
 
 func TestNameIndex(t *testing.T) {
@@ -109,5 +112,23 @@ func TestServerBar(t *testing.T) {
 	}
 	if _, ok := m.View().(row.Widget); !ok {
 		t.Fatalf("view = %T, want the bar beside the tree", m.View())
+	}
+
+	// Drawn, the bar shows the servers without icons by their initials, the open one with its pill.
+	screen, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 40, Y: 20}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := screen.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(screen.Fini)
+	m.View().Draw(screen, tview.Rectangle{Width: 40, Height: 20})
+	cell := func(x, y int) string { str, _, _ := screen.Get(x, y); return str }
+	if got := cell(0, 4) + cell(1, 5) + cell(2, 5) + cell(3, 5) + cell(4, 5); !strings.Contains(got, "O") || cell(0, 4) != "▌" {
+		t.Fatalf("the open server's entry reads %q, want its pill and initial", got)
+	}
+	if cell(3, 1) != "D" && cell(2, 1) != "D" && cell(4, 1) != "D" {
+		t.Fatalf("direct messages are not shown by their initials: %q", cell(1, 1)+cell(2, 1)+cell(3, 1)+cell(4, 1))
 	}
 }
