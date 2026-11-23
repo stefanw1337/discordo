@@ -30,7 +30,12 @@ type Setting struct {
 	Set     func(*config.Config, any)
 	// Live is set for a setting that is applied at once. The others are applied when discordo is started again.
 	Live bool
+	// Open, if set, is the page the setting opens instead of having choices.
+	Open tview.Msg
 }
+
+// OpenProgramsMsg opens the page of the programs shown as the user's activity.
+type OpenProgramsMsg struct{}
 
 // textSetting and boolSetting make the Get and Set of a setting of the field field returns.
 func textSetting(field func(*config.Config) *string) (func(*config.Config) any, func(*config.Config, any)) {
@@ -71,6 +76,10 @@ func Settings() []Setting {
 
 	settings := []Setting{guildIcons, sidebarWidth, timeFormat, dateFormat, images}
 	settings = append(settings, voiceSettings()...)
+	g, s = boolSetting(func(c *config.Config) *bool { return &c.Activity.Enabled })
+	settings = append(settings,
+		newSetting("Share what I'm doing", []string{"activity", "enabled"}, []Choice{{"off", false}, {"on", true}}, true, g, s),
+		Setting{Label: "Programs shown as my activity", Open: OpenProgramsMsg{}})
 	for _, b := range []struct {
 		label string
 		key   []string
@@ -162,6 +171,11 @@ func (m Model) items() picker.Items {
 	items := make(picker.Items, 0, len(m.settings)+1)
 	dim := tcell.StyleDefault.Dim(true)
 	for i, setting := range m.settings {
+		if setting.Open != nil {
+			spans := []text.Span{{Text: setting.Label + " ›", Style: tcell.StyleDefault.Bold(true)}}
+			items = append(items, picker.Item{Content: text.Rich(spans...).Wrapping(text.WrappingNone), FilterText: setting.Label, Reference: i})
+			continue
+		}
 		value := "custom"
 		if index := current(setting, m.cfg); index >= 0 {
 			value = setting.Choices[index].Label
@@ -202,6 +216,10 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, nil
 		}
 		setting := m.settings[index]
+		if setting.Open != nil {
+			open := setting.Open
+			return m, cmd.Task(func() tview.Msg { return open })
+		}
 		next := setting.Choices[(current(setting, m.cfg)+1)%len(setting.Choices)]
 		setting.Set(m.cfg, next.Value)
 		m.err = config.SetValue(m.cfg.Path, setting.Key, next.Value)

@@ -35,6 +35,14 @@ func (m Model) Visible() picker.Items {
 	return m.searchState.Visible(m.items, m.cfg.Picker.Height)
 }
 
+// Selected returns the selected item.
+func (m Model) Selected() (picker.Item, bool) {
+	return m.searchState.Selected(m.items)
+}
+
+// Select selects the ith match.
+func (m *Model) Select(i int) { m.searchState.Select(i) }
+
 // Reset clears the query.
 func (m *Model) Reset() { m.searchState.Reset() }
 

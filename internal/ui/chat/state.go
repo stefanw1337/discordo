@@ -155,7 +155,13 @@ func (m *Model) applyEvent(event gateway.Event) tview.Cmd {
 		slog.Debug("new raw event", "code", event.OriginalCode, "type", event.OriginalType)
 
 	case *gateway.ReadyEvent:
-		return cmd.Batch{m.loadGuildsTree(event), m.updatePane(paneMembersTree, event)}
+		commands := cmd.Batch{m.loadGuildsTree(event), m.updatePane(paneMembersTree, event)}
+		// A new session shows nothing until it is sent again.
+		m.activity.sent, m.activity.exe = nil, ""
+		if m.cfg.Activity.Enabled {
+			commands = append(commands, m.scanActivity(0))
+		}
+		return commands
 
 	case *gateway.MessageCreateEvent:
 		return m.addMessageOrNotify(event)

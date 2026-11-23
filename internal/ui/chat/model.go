@@ -34,6 +34,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/chat/reactionspicker"
+	"github.com/ayn2op/discordo/internal/ui/chat/programs"
 	"github.com/ayn2op/discordo/internal/ui/chat/settings"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
@@ -94,6 +95,10 @@ type Model struct {
 	messageMenu messagemenu.Model
 	// settings is the page that changes and saves settings.
 	settings settings.Model
+	// programs is the page of the programs shown as the user's activity.
+	programs programs.Model
+	// activity is what the user is shown doing.
+	activity sharedActivity
 	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
 	pendingJump pendingJump
 
@@ -175,6 +180,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.friendRequests = friendrequests.NewModel(cfg, m.state)
 	m.messageMenu = messagemenu.NewModel(cfg)
 	m.settings = settings.NewModel(cfg)
+	m.programs = programs.NewModel(cfg)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -203,6 +209,7 @@ const (
 	overlayFriendRequests
 	overlayMessageMenu
 	overlaySettings
+	overlayPrograms
 )
 
 // pendingJump is a message in a channel being opened, to select once the channel loads.
@@ -234,6 +241,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.messageMenu.View()
 	case overlaySettings:
 		return m.settings.View()
+	case overlayPrograms:
+		return m.programs.View()
 	default:
 		return nil
 	}
@@ -471,7 +480,22 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case settings.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
+	case settings.OpenProgramsMsg:
+		m.overlay = overlayPrograms
+		return m, m.programs.Open()
+	case programs.CancelMsg:
+		// The programs page is opened from the settings, which are shown again.
+		m.settings.Open()
+		m.overlay = overlaySettings
+		return m, nil
+	case programs.ChangedMsg:
+		return m, m.scanActivity(0)
+	case activityScannedMsg:
+		return m, m.activityScanned(msg)
 	case settings.ChangedMsg:
+		if slices.Equal(msg.Key, []string{"activity", "enabled"}) {
+			return m, m.scanActivity(0)
+		}
 		if len(msg.Key) > 0 && msg.Key[0] == "voice" {
 			m.guildsTree.ApplyVoiceSettings()
 			return m, nil
@@ -652,6 +676,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.messageMenu, cmd = m.messageMenu.Update(msg)
 	case overlaySettings:
 		m.settings, cmd = m.settings.Update(msg)
+	case overlayPrograms:
+		m.programs, cmd = m.programs.Update(msg)
 	case overlayFriendRequests:
 		m.friendRequests, cmd = m.friendRequests.Update(msg)
 	default:

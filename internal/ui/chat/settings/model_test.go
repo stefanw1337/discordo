@@ -50,6 +50,9 @@ func TestChangeSetting(t *testing.T) {
 func TestSettingsCoverChoices(t *testing.T) {
 	cfg := config.Default()
 	for _, setting := range Settings() {
+		if setting.Open != nil {
+			continue
+		}
 		if setting.Get == nil || setting.Set == nil || len(setting.Choices) < 2 {
 			t.Fatalf("setting %q is incomplete", setting.Label)
 		}

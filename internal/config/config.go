@@ -108,6 +108,28 @@ type (
 		PushToTalk string `toml:"push_to_talk"`
 	}
 
+	// Activity is what others see you doing, as Discord shows under your name, taken from the programs you have
+	// open. Nothing is looked at until it is enabled.
+	Activity struct {
+		// Whether discordo looks at the windows that are open, every 15 seconds, to show the first of programs that
+		// has one. Off, so that nothing is looked at unless you want it.
+		Enabled bool `toml:"enabled"`
+		// The programs that are shown, in the order they are preferred. Programs that are not listed are never shown.
+		Programs []Program `toml:"programs"`
+	}
+
+	// Program is a program shown as your activity while it has a window open.
+	Program struct {
+		// The name of the program's file, such as "StarCitizen.exe", matched without regard to case.
+		Exe string `toml:"exe"`
+		// The name others see, such as "Star Citizen".
+		Name string `toml:"name"`
+		// "playing", "listening", "watching" or "competing", which Discord shows before the name.
+		Type string `toml:"type"`
+		// Whether the title of the program's window, such as the song Spotify plays, is shown under the name.
+		ShowTitle bool `toml:"show_title"`
+	}
+
 	// Stream is how Go Live streams of others are watched.
 	Stream struct {
 		// The program that plays a stream's video, which it is given on its standard input. mpv is recommended: it
@@ -244,8 +266,9 @@ type (
 
 		// Layout and behavior of the widgets.
 		UI     UIConfig `toml:"ui"`
-		Voice  Voice    `toml:"voice"`
-		Stream Stream   `toml:"stream"`
+		Voice    Voice    `toml:"voice"`
+		Activity Activity `toml:"activity"`
+		Stream   Stream   `toml:"stream"`
 		Icons  Icons    `toml:"icons"`
 
 		// Global shortcuts. A keybind is a key such as "ctrl+k", or a list of keys.

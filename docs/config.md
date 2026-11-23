@@ -630,6 +630,34 @@ is louder than the sensitivity.
 
 Default: `""`
 
+# activity
+
+What others see you doing, as Discord shows under your name, taken from the programs you have open. Nothing is
+looked at until it is enabled. The settings page (ctrl+s) turns it on, and its "Programs shown as my activity" page
+adds the programs that are open, names them as others should see them, and orders them.
+
+## activity.enabled
+
+Whether discordo looks at the windows that are open, every 15 seconds, to show the first of programs that has one.
+Off, so that nothing is looked at unless you want it.
+
+Default: `false`
+
+## activity.programs
+
+The programs that are shown, in the order they are preferred. Programs that are not listed are never shown. Each is
+written as
+
+```toml
+[[activity.programs]]
+exe = "StarCitizen.exe"   # the name of the program's file, matched without regard to case
+name = "Star Citizen"     # the name others see
+type = "playing"          # "playing", "listening", "watching" or "competing"
+show_title = false        # whether the title of its window, such as the song Spotify plays, is shown under the name
+```
+
+Default: `[]`
+
 # stream
 
 ## stream.player
