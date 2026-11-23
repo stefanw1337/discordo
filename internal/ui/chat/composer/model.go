@@ -24,6 +24,7 @@ import (
 	"github.com/ayn2op/discordo/internal/consts"
 	"github.com/ayn2op/discordo/internal/ui"
 	"github.com/ayn2op/discordo/internal/ui/autocomplete"
+	"github.com/ayn2op/discordo/internal/ui/autocomplete/channels"
 	"github.com/ayn2op/discordo/internal/ui/autocomplete/mentions"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/ningen/v3"
@@ -51,6 +52,9 @@ const (
 )
 
 var mentionRegex = regexp.MustCompile("@[a-zA-Z0-9._]+")
+
+// channelRegex matches #name of a channel to mention, which expandMentions takes only at the start of a word.
+var channelRegex = regexp.MustCompile(`#[^\s#@:<>]+`)
 
 type Model struct {
 	text string
@@ -308,7 +312,7 @@ func (m *Model) toggleReplyMention() {
 
 func (m Model) processText(channel *discord.Channel, source []byte) string {
 	// Fast path: no mentions to expand.
-	if bytes.IndexByte(source, '@') == -1 {
+	if bytes.IndexByte(source, '@') == -1 && bytes.IndexByte(source, '#') == -1 {
 		return string(source)
 	}
 
@@ -362,13 +366,38 @@ func isCode(node ast.Node) bool {
 }
 
 func (m Model) expandMentions(channel *discord.Channel, source []byte) []byte {
-	return mentionRegex.ReplaceAllFunc(source, func(input []byte) []byte {
+	source = mentionRegex.ReplaceAllFunc(source, func(input []byte) []byte {
 		if mention := m.mention(channel, string(input[1:])); mention != "" {
 			return []byte(mention)
 		}
 
 		return input
 	})
+	// #name of a channel of the guild becomes a mention of it, as Discord's own client sends it; other text that
+	// starts with # is left as it is.
+	matches := channelRegex.FindAllIndex(source, -1)
+	for _, match := range slices.Backward(matches) {
+		start, stop := match[0], match[1]
+		if start > 0 {
+			if before, _ := utf8.DecodeLastRune(source[:start]); !unicode.IsSpace(before) && before != '(' {
+				continue
+			}
+		}
+		// A channel named at the end of a sentence is followed by its punctuation.
+		name := string(source[start+1 : stop])
+		for name != "" {
+			if found := channels.Find(m.state, channel.GuildID, name); found != nil {
+				source = slices.Replace(source, start, start+1+len(name), []byte(found.ID.Mention())...)
+				break
+			}
+			trimmed := strings.TrimRight(name, ".,!?)\"'")
+			if trimmed == name {
+				break
+			}
+			name = trimmed
+		}
+	}
+	return source
 }
 
 // mention returns the mention of the user called name who can see channel, else of the role called name that may be mentioned there, or "" if there is neither.
@@ -441,6 +470,11 @@ func isMentionChar(char rune) bool {
 	return unicode.IsLetter(char) || unicode.IsDigit(char) || char == '_' || char == '.'
 }
 
+// isChannelChar reports whether char can be in a channel's name, which can hold emoji and symbols, but no space.
+func isChannelChar(char rune) bool {
+	return !unicode.IsSpace(char) && char != '#' && char != '@' && char != ':'
+}
+
 func isEmojiChar(char rune) bool {
 	return unicode.IsLetter(char) || unicode.IsDigit(char) || char == '_' || char == '+' || char == '-'
 }
@@ -449,6 +483,14 @@ func isEmojiChar(char rune) bool {
 func (m Model) query() (rune, string) {
 	if name, trigger := wordBeforeCursor(m.text, m.cursor, isMentionChar); trigger == '@' && m.cfg.UI.Autocomplete.Mentions.Enabled {
 		return trigger, name
+	}
+	if name, trigger := wordBeforeCursor(m.text, m.cursor, isChannelChar); trigger == '#' && m.cfg.UI.Autocomplete.Mentions.Enabled &&
+		m.channel != nil && m.channel.GuildID.IsValid() {
+		hash := m.cursor - len(name) - 1
+		before, _ := utf8.DecodeLastRuneInString(m.text[:hash])
+		if hash == 0 || unicode.IsSpace(before) {
+			return trigger, name
+		}
 	}
 
 	if !m.cfg.UI.Autocomplete.Emojis.Enabled {

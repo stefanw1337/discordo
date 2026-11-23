@@ -1,6 +1,7 @@
 package composer
 
 import (
+	"github.com/ayn2op/discordo/internal/ui/autocomplete/channels"
 	"image"
 	"maps"
 	"path/filepath"
@@ -479,4 +480,54 @@ func TestModelPost(t *testing.T) {
 			t.Fatalf("command = %v, post = %v, text = %q", command, c.post, c.text)
 		}
 	})
+}
+
+func TestModelProcessTextChannels(t *testing.T) {
+	cfg, err := config.Load(filepath.Join(t.TempDir(), "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Everyone in guild 1 may view its channels.
+	state := ningen.FromState(state.NewWithStore("", defaultstore.New()))
+	channel := discord.Channel{ID: 10, GuildID: 1, Type: discord.GuildText, Name: "general"}
+	news := discord.Channel{ID: 11, GuildID: 1, Type: discord.GuildText, Name: "📰|sc-news"}
+	for _, err := range []error{
+		state.MyselfSet(discord.User{ID: 3}, false),
+		state.GuildSet(&discord.Guild{ID: 1}, false),
+		state.MemberSet(1, &discord.Member{User: discord.User{ID: 3}}, false),
+		state.RoleSet(1, &discord.Role{ID: 1, Permissions: discord.PermissionViewChannel}, false),
+		state.ChannelSet(&channel, false),
+		state.ChannelSet(&news, false),
+	} {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	c := NewModel(cfg, state)
+	for _, tt := range []struct{ name, in, want string }{
+		{"channel", "see #general", "see <#10>"},
+		{"emoji in the name, ending a sentence", "Jepp, så det i #📰|sc-news.", "Jepp, så det i <#11>."},
+		{"without its emoji", "i #sc-news!", "i <#11>!"},
+		{"not a channel", "issue #42", "issue #42"},
+		{"inside a word", "C#general", "C#general"},
+		{"in code", "`#general`", "`#general`"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := c.processText(&channel, []byte(tt.in)); got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+
+	// Typing # offers the channels.
+	c.channel = &channel
+	c.text, c.cursor = "#sc", 3
+	if trigger, name := c.query(); trigger != '#' || name != "sc" {
+		t.Fatalf("query = %q %q, want the channel sc being completed", trigger, name)
+	}
+	if items := channels.Items(state, &channel, "sc", 5); len(items) != 1 || items[0].Insert() != "#📰|sc-news" {
+		t.Fatalf("items = %v, want #📰|sc-news", items)
+	}
 }

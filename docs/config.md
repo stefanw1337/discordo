@@ -1112,7 +1112,7 @@ The query takes Discord's filters: from:user, mentions:user, has:link (or file, 
 The picker keybinds move through the results, or through the suggestions while typing; the composer's tab_complete completes the selected suggestion.
 Select completes an unfinished filter, or else searches, or selects the result if the query is unchanged.
 
-Default: `"/"`
+Default: `["/", "ctrl+f"]`
 
 ### keybinds.messages_list.delete
 
@@ -1271,7 +1271,7 @@ Default: `"ctrl+b"`
 
 ### keybinds.composer.cursor_right
 
-Default: `"ctrl+f"`
+Default: `"right"`
 
 ### keybinds.composer.cursor_up
 

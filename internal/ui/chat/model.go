@@ -48,6 +48,7 @@ import (
 	"github.com/ayn2op/tview/picker"
 	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/stack"
+	"github.com/gdamore/tcell/v3"
 )
 
 type Model struct {
@@ -500,6 +501,12 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, nil
 		// Pasting, wherever the focus is, pastes into the message being written, as the composer is where anything
 		// pasted can go.
+		// Searching with ctrl+f, as in Discord, searches the channel open from wherever the focus is; / types itself
+		// in the composer.
+		case m.focused != paneMessagesList && m.selectedChannel != nil && keybind.Matches(msg, keybinds.MessagesList.Search.Keybind) &&
+			msg.Key() != tcell.KeyRune:
+			m.setFocus(paneMessagesList)
+			return m, m.updatePane(paneMessagesList, msg)
 		case m.focused != paneComposer && m.selectedChannel != nil && keybind.Matches(msg, keybinds.Composer.Paste.Keybind):
 			m.setFocus(paneComposer)
 			return m, m.updatePane(paneComposer, msg)

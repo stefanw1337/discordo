@@ -17,6 +17,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/utils/json/option"
 	"github.com/ayn2op/arikawa/v3/utils/sendpart"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/ui/autocomplete/channels"
 	"github.com/ayn2op/discordo/internal/ui/autocomplete/emojis"
 	"github.com/ayn2op/discordo/internal/ui/autocomplete/mentions"
 	"github.com/ayn2op/tview"
@@ -262,6 +263,9 @@ func (m *Model) showAutocomplete() tview.Cmd {
 	if trigger == '@' {
 		items, loadImages := mentions.Items(m.cfg, m.state, m.channel, name, limit)
 		return cmd.Batch{m.showCompletions(mentions.Title, items), loadImages, m.searchMember(guildID, name)}
+	}
+	if trigger == '#' {
+		return m.showCompletions(channels.Title, channels.Items(m.state, m.channel, name, limit))
 	}
 
 	items, loadImages := emojis.Items(m.cfg, m.state, guildID, name, limit)

@@ -397,7 +397,7 @@ func defaultKeybinds() Keybinds {
 
 			Cancel: key("cancel", "esc"),
 			Edit:   key("edit", "e"),
-			Search: key("search", "/"),
+			Search: key("search", "/", "ctrl+f"),
 
 			Delete:        key("force delete", ""),
 			DeleteConfirm: key("delete", "d"),
@@ -432,7 +432,7 @@ func defaultKeybinds() Keybinds {
 			OpenFilePicker: key("attach", "ctrl+\\"),
 
 			CursorLeft:  key("left", "ctrl+b"),
-			CursorRight: key("right", "ctrl+f"),
+			CursorRight: key("right", "right"),
 			CursorUp:    key("up", "ctrl+p"),
 			CursorDown:  key("down", "ctrl+n"),
 			LineStart:   key("line start", "ctrl+a"),
