@@ -191,7 +191,7 @@ func (m *Model) openAdjacent(previous bool) {
 	}
 }
 
-// barOpenMsg opens the entry of the bar at index; barScrollMsg scrolls the bar by entries. barPressMsg is a press on
+// barOpenMsg opens the entry of the bar at index; barScrollMsg scrolls the bar to show from the entry at its index. barPressMsg is a press on
 // an entry, and barReleaseMsg the release that follows: on the same entry it opens it, and on another it moves the
 // pressed one there.
 type (
@@ -297,10 +297,16 @@ func (b bar) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 			return barPressMsg(index)
 		}
 		return barReleaseMsg(index)
-	case tview.MouseScrollUp:
-		return barScrollMsg(-1)
-	case tview.MouseScrollDown:
-		return barScrollMsg(1)
+	case tview.MouseScrollUp, tview.MouseScrollDown:
+		// The offset scrolled to is worked out from the one shown, which the bar keeps from passing its end, so
+		// that scrolling back up moves it at once however far down it was scrolled.
+		delta := 1
+		if mouse.Action == tview.MouseScrollUp {
+			delta = -1
+		}
+		shown := max((area.Height+1)/(barRows+1), 1)
+		last := max(len(b.entries)-shown, 0)
+		return barScrollMsg(max(min(min(b.offset, last)+delta, last), 0))
 	}
 	return msg
 }
@@ -342,7 +348,7 @@ func (m Model) updateBar(msg tview.Msg) (Model, tview.Cmd, bool) {
 		}
 		return m, nil, true
 	case barScrollMsg:
-		m.barOffset = max(min(m.barOffset+int(msg), len(m.barEntries())-1), 0)
+		m.barOffset = int(msg)
 		return m, nil, true
 	}
 	return m, nil, false

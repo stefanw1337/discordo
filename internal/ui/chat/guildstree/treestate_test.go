@@ -10,7 +10,9 @@ import (
 	"github.com/ayn2op/arikawa/v3/state/store/defaultstore"
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/ningen/v3"
+	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/tree"
+	"github.com/gdamore/tcell/v3"
 )
 
 func TestTreeState(t *testing.T) {
@@ -69,5 +71,15 @@ func TestEmptyCategoryLeftOut(t *testing.T) {
 	if len(guild.Children()) != 0 {
 		_, err := s.Cabinet.Channel(10)
 		t.Fatalf("children = %d (its children %d, err %v), want the category without visible channels left out", len(guild.Children()), len(guild.Children()[0].Children()), err)
+	}
+}
+
+func TestBarScrollBack(t *testing.T) {
+	b := bar{entries: make([]barEntry, 20), offset: 19}
+	area := tview.Rectangle{Width: barWidth, Height: 40}
+	up := tview.MouseMsg{EventMouse: tcell.NewEventMouse(1, 1, tcell.WheelUp, tcell.ModNone), Action: tview.MouseScrollUp}
+	// Ten entries show, so the bar shows from the tenth however far it was scrolled; up shows from the ninth.
+	if got := b.Handle(up, area); got != barScrollMsg(9) {
+		t.Fatalf("scrolling up = %v, want barScrollMsg(9)", got)
 	}
 }
