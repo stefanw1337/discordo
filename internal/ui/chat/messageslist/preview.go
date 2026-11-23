@@ -2,7 +2,10 @@ package messageslist
 
 import (
 	"image"
+	"net/url"
+	"path"
 	"slices"
+	"strings"
 
 	"github.com/ayn2op/arikawa/v3/discord"
 	md "github.com/ayn2op/arikawa/v3/markdown"
@@ -37,7 +40,13 @@ func (m Model) previewSources(message discord.Message) []previewSource {
 			sources = append(sources, previewSource{embed.Image.Proxy, embed.Image.Width, embed.Image.Height, embed.Image.URL, embed.Title})
 		// Image and GIF embeds carry the media itself as the thumbnail.
 		case embed.Thumbnail != nil && (embed.Type == discord.ImageEmbed || embed.Type == discord.GIFVEmbed):
-			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedMediaURL(embed), embed.Title})
+			proxy := embed.Thumbnail.Proxy
+			// A Tenor GIF, which Discord sends as a video with a still thumbnail, is shown as the GIF it also is, so
+			// that it plays.
+			if gif := tenorGIF(embed); gif != "" {
+				proxy = gif
+			}
+			sources = append(sources, previewSource{proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedMediaURL(embed), embed.Title})
 		// A video, such as a YouTube link, shows its thumbnail, and plays when it is clicked.
 		case embed.Thumbnail != nil && embed.Video != nil:
 			sources = append(sources, previewSource{embed.Thumbnail.Proxy, embed.Thumbnail.Width, embed.Thumbnail.Height, embedVideoURL(embed), embed.Title})
@@ -46,6 +55,24 @@ func (m Model) previewSources(message discord.Message) []previewSource {
 
 	// Non-image files have no dimensions.
 	return slices.DeleteFunc(sources, func(source previewSource) bool { return source.width == 0 || source.height == 0 })
+}
+
+// tenorGIF returns the GIF of a Tenor embed, or "". Tenor names a file of each format by its ID and a code of five
+// characters: its video media.tenor.com/<id>AAAPo/<name>.mp4 is also the GIF media.tenor.com/<id>AAAAC/<name>.gif.
+func tenorGIF(embed discord.Embed) discord.URL {
+	if embed.Type != discord.GIFVEmbed || embed.Video == nil {
+		return ""
+	}
+	u, err := url.Parse(embed.Video.URL)
+	if err != nil || u.Host != "media.tenor.com" {
+		return ""
+	}
+	parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	if len(parts) != 2 || len(parts[0]) <= 5 {
+		return ""
+	}
+	name := strings.TrimSuffix(parts[1], path.Ext(parts[1]))
+	return "https://media.tenor.com/" + parts[0][:len(parts[0])-5] + "AAAAC/" + name + ".gif"
 }
 
 // embedVideoURL returns what plays the video of embed: the page it was linked as, for a site such as YouTube, whose

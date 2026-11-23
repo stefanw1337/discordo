@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ayn2op/tview"
 	"github.com/gdamore/tcell/v3"
@@ -122,6 +123,8 @@ func decodeMarker(style tview.Style) (id, col, row int, ok bool) {
 // shown is an image as it was written over the screen: where, which part of it, and the cells under it.
 type shown struct {
 	id, x, y, top, bottom int
+	// frame is the frame of an animation shown.
+	frame int
 	// cells is a hash of the cells under it, which the screen writes again, over it, whenever they change.
 	cells uint64
 }
@@ -137,16 +140,57 @@ type Screen struct {
 	written map[[2]int]shown
 	// cache keeps images encoded, as they are written again whenever the screen is redrawn under them.
 	cache map[shown][]byte
+	// now returns the time, which tests set.
+	now func() time.Time
 }
+
+// frameInterval is how often animations are moved to their next frame.
+const frameInterval = 40 * time.Millisecond
 
 // NewScreen returns screen, writing the images marked on it with sixels once SetEnabled turns them on.
 func NewScreen(screen tcell.Screen) *Screen {
-	return &Screen{Screen: screen, written: make(map[[2]int]shown), cache: make(map[shown][]byte)}
+	s := &Screen{Screen: screen, written: make(map[[2]int]shown), cache: make(map[shown][]byte), now: time.Now}
+	go s.animate()
+	return s
 }
 
-// Show shows the frame drawn, then writes its images over it.
+// animate writes the next frames of the animations on the screen as they are due, where they were last written.
+func (s *Screen) animate() {
+	ticker := time.NewTicker(frameInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		if Enabled() {
+			s.nextFrames()
+		}
+	}
+}
+
+// nextFrames writes the frames now due of the animations written, over the same cells.
+func (s *Screen) nextFrames() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for where, image := range s.written {
+		e, ok := lookup(image.id)
+		if !ok {
+			continue
+		}
+		animation, ok := e.img.(*Animation)
+		if !ok {
+			continue
+		}
+		if frame := animation.frameAt(s.now()); frame != image.frame {
+			image.frame = frame
+			s.write(image, e)
+			s.written[where] = image
+		}
+	}
+}
+
+// Show shows the frame drawn, then writes its images over it. Animations, written between, are kept out meanwhile.
 func (s *Screen) Show() {
+	s.mutex.Lock()
 	s.Screen.Show()
+	s.mutex.Unlock()
 	if Enabled() {
 		s.writeImages()
 	}
@@ -156,8 +200,8 @@ func (s *Screen) Show() {
 func (s *Screen) Sync() {
 	s.mutex.Lock()
 	clear(s.written)
-	s.mutex.Unlock()
 	s.Screen.Sync()
+	s.mutex.Unlock()
 	if Enabled() {
 		s.writeImages()
 	}
@@ -174,7 +218,10 @@ func (s *Screen) writeImages() {
 		// full counts the marked cells of each row, which is shown whole if all of its are.
 		full map[int]int
 	}
-	marks := map[int]*found{}
+	// One image can be in several places, as a guild's icon is in its folder and by its name: each is found by where
+	// its corner is.
+	type place struct{ id, x, y int }
+	marks := map[place]*found{}
 	for y := range height {
 		for x := range width {
 			_, style, _ := s.Get(x, y)
@@ -182,20 +229,19 @@ func (s *Screen) writeImages() {
 			if !ok {
 				continue
 			}
-			f := marks[id]
+			key := place{id, x - col, y - row}
+			f := marks[key]
 			if f == nil {
-				f = &found{x: x - col, y: y - row, full: map[int]int{}}
-				marks[id] = f
+				f = &found{x: key.x, y: key.y, full: map[int]int{}}
+				marks[key] = f
 			}
-			// Only cells where the image's corner says they are count, as one image can be in two places.
-			if x-col == f.x && y-row == f.y {
-				f.full[row]++
-			}
+			f.full[row]++
 		}
 	}
 
 	written := make(map[[2]int]shown, len(marks))
-	for id, f := range marks {
+	for key, f := range marks {
+		id := key.id
 		e, ok := lookup(id)
 		if !ok {
 			continue
@@ -223,6 +269,9 @@ func (s *Screen) writeImages() {
 		}
 
 		image := shown{id: id, x: f.x, y: f.y + bestTop, top: bestTop, bottom: bestBottom}
+		if animation, ok := e.img.(*Animation); ok {
+			image.frame = animation.frameAt(s.now())
+		}
 		image.cells = s.hashCells(f.x, f.y+bestTop, e.cols, bestBottom-bestTop)
 		where := [2]int{image.x, image.y}
 		written[where] = image
@@ -248,15 +297,19 @@ func (s *Screen) hashCells(x, y, width, height int) uint64 {
 
 // write writes the rows of the image from top to bottom over the cells where image says.
 func (s *Screen) write(image shown, e entry) {
-	key := shown{id: image.id, top: image.top, bottom: image.bottom}
+	key := shown{id: image.id, top: image.top, bottom: image.bottom, frame: image.frame}
 	data, ok := s.cache[key]
 	if !ok {
-		if len(s.cache) > 256 {
+		if len(s.cache) > 1024 {
 			clear(s.cache)
 		}
 		height := e.rows * e.cellHeight
 		top, bottom := image.top*e.cellHeight, image.bottom*e.cellHeight
-		data = Encode(e.img, e.cols*e.cellWidth, height, top, bottom)
+		img := e.img
+		if animation, ok := img.(*Animation); ok {
+			img = animation.Frames[image.frame]
+		}
+		data = Encode(img, e.cols*e.cellWidth, height, top, bottom)
 		s.cache[key] = data
 	}
 

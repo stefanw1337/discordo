@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"image/gif"
 	"strconv"
 	"strings"
 	"testing"
@@ -253,4 +254,87 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+func TestDecodeGIFAnimation(t *testing.T) {
+	palette := color.Palette{color.Black, color.White}
+	g := &gif.GIF{Delay: []int{10, 20}}
+	for i := range 2 {
+		frame := image.NewPaletted(image.Rect(0, 0, 4, 4), palette)
+		frame.SetColorIndex(i, 0, 1)
+		g.Image = append(g.Image, frame)
+	}
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, g); err != nil {
+		t.Fatal(err)
+	}
+	img, err := DecodeGIF(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	animation, ok := img.(*Animation)
+	if !ok || len(animation.Frames) != 2 {
+		t.Fatalf("decoded %T, want an animation of 2 frames", img)
+	}
+	// 100ms then 200ms, looping every 300ms.
+	if got := animation.frameAt(time.Unix(0, int64(150*time.Millisecond))); got != 1 {
+		t.Fatalf("frame at 150ms = %d, want 1", got)
+	}
+	if got := animation.frameAt(time.Unix(0, int64(350*time.Millisecond))); got != 0 {
+		t.Fatalf("frame at 350ms = %d, want 0", got)
+	}
+}
+
+func TestAnimationFrames(t *testing.T) {
+	frames := []image.Image{image.NewRGBA(image.Rect(0, 0, 8, 16)), image.NewRGBA(image.Rect(0, 0, 8, 16))}
+	frames[1].(*image.RGBA).Set(0, 0, color.White)
+	animation := NewAnimation(frames, []time.Duration{100 * time.Millisecond, 100 * time.Millisecond})
+
+	SetEnabled(true)
+	t.Cleanup(func() { SetEnabled(false) })
+	inner, err := tcell.NewTerminfoScreenFromTty(vt.NewMockTerm(vt.MockOptSize{X: 10, Y: 4}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := inner.Init(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(inner.Fini)
+	// Made without NewScreen, which would also move the frames on in the background.
+	var out bytes.Buffer
+	screen := &Screen{Screen: inner, out: &out, written: map[[2]int]shown{}, cache: map[shown][]byte{}}
+	now := time.Unix(0, 0)
+	screen.now = func() time.Time { return now }
+
+	widget := New(animation, 1, 8, 16)
+	widget.Draw(screen, tview.Rectangle{X: 1, Y: 1, Width: 2, Height: 2})
+	screen.Show()
+	first := out.Len()
+	if first == 0 {
+		t.Fatal("the animation was not written")
+	}
+	screen.nextFrames()
+	if out.Len() != first {
+		t.Fatal("a frame was written before it was due")
+	}
+	now = now.Add(150 * time.Millisecond)
+	screen.nextFrames()
+	if out.Len() == first {
+		t.Fatal("the next frame was not written")
+	}
+}
+
+func TestScreenSameImageTwice(t *testing.T) {
+	SetEnabled(true)
+	t.Cleanup(func() { SetEnabled(false) })
+	screen, out := testScreen(t, 20, 10)
+
+	// One avatar by two messages of the same author, the upper one cut by the top of the screen.
+	widget := New(solid(16, 16, color.NRGBA{255, 0, 0, 255}), 2, 8, 16)
+	widget.Draw(screen, tview.Rectangle{X: 0, Y: -1, Width: 2, Height: 2})
+	widget.Draw(screen, tview.Rectangle{X: 0, Y: 5, Width: 2, Height: 2})
+	screen.Show()
+	if !strings.Contains(out.String(), "\x1b[6;1H") {
+		t.Fatalf("the image in full, at row 6, was not written: %q", out.String())
+	}
 }

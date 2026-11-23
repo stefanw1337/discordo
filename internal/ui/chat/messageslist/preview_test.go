@@ -132,3 +132,17 @@ func TestBoostText(t *testing.T) {
 		}
 	}
 }
+
+func TestTenorGIF(t *testing.T) {
+	embed := discord.Embed{
+		Type:  discord.GIFVEmbed,
+		Video: &discord.EmbedVideo{URL: "https://media.tenor.com/Ab1Cd2Ef3GhAAAPo/cat-dance.mp4"},
+	}
+	if got, want := tenorGIF(embed), discord.URL("https://media.tenor.com/Ab1Cd2Ef3GhAAAAC/cat-dance.gif"); got != want {
+		t.Fatalf("tenorGIF = %q, want %q", got, want)
+	}
+	embed.Video.URL = "https://static.klipy.com/ii/abc/rock.mp4"
+	if got := tenorGIF(embed); got != "" {
+		t.Fatalf("tenorGIF of another site = %q, want none", got)
+	}
+}

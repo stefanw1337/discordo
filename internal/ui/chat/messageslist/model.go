@@ -1,6 +1,8 @@
 package messageslist
 
 import (
+	"errors"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -133,7 +135,12 @@ func (m Model) listView() viewport.Widget {
 	item := func(index int) tview.Widget {
 		view := m.buildItem(index)
 		if index == m.cursor && selectedStyle != tcell.StyleDefault {
-			return selected{Widget: view, style: selectedStyle}
+			// The avatar's column is left as it is, so that the highlight lines up with the text.
+			inset := 0
+			if item := m.items[index]; item.separator == nil && m.showsAvatar(item.message.Author) && item.message.Type != discord.InlinedReplyMessage {
+				inset = m.avatarWidth + 1
+			}
+			return selected{Widget: view, style: selectedStyle, inset: inset}
 		}
 		return view
 	}
@@ -746,8 +753,23 @@ func (m Model) canDeleteMessage(message discord.Message) bool {
 
 // canReact reports whether the user may react to messages in the channel, which is always so in DMs.
 // Reacting with an emoji nobody has reacted with takes adding reactions as well as reading the message history.
+//
+// Permissions that cannot be worked out, as when the user's own member is not in the state yet, do not stop it:
+// Discord refuses a reaction the user may not add.
 func (m Model) canReact() bool {
-	return m.channel != nil && (!m.channel.GuildID.IsValid() || m.state.HasPermissions(m.channel.ID, discord.PermissionAddReactions|discord.PermissionReadMessageHistory))
+	if m.channel == nil {
+		return false
+	}
+	if !m.channel.GuildID.IsValid() {
+		return true
+	}
+	err := m.state.AssertPermissions(m.channel.ID, discord.PermissionAddReactions|discord.PermissionReadMessageHistory)
+	var denied *ningen.NoPermissionError
+	if err != nil && !errors.As(err, &denied) {
+		slog.Debug("permissions to react are unknown", "channel_id", m.channel.ID, "err", err)
+		return true
+	}
+	return err == nil
 }
 
 func (m Model) InvalidateRendered() {

@@ -515,10 +515,10 @@ func TestModelCanReact(t *testing.T) {
 			t.Error("cannot react in a DM")
 		}
 	})
-	t.Run("without permissions", func(t *testing.T) {
-		// The permissions in the guild are unknown.
-		if ml.channel = (&discord.Channel{ID: 2, GuildID: 3}); ml.canReact() {
-			t.Error("can react without the permissions")
+	t.Run("unknown permissions", func(t *testing.T) {
+		// The permissions in the guild are unknown, as when the user's member is not in the state: Discord decides.
+		if ml.channel = (&discord.Channel{ID: 2, GuildID: 3}); !ml.canReact() {
+			t.Error("cannot react when the permissions are unknown")
 		}
 	})
 }

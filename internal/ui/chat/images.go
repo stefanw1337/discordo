@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"bufio"
 	"compress/zlib"
 	"image"
 	"image/draw"
@@ -204,7 +205,17 @@ func (m Model) downloadImage(proxy discord.URL, bounds image.Rectangle) (image.I
 		return nil, err
 	}
 	defer resp.Body.Close() //nolint:errcheck
-	img, _, err := image.Decode(resp.Body)
+	return decodeImage(resp.Body)
+}
+
+// decodeImage reads an image, an animated GIF as an animation that sixels play and other images show the first frame
+// of.
+func decodeImage(r io.Reader) (image.Image, error) {
+	reader := bufio.NewReader(r)
+	if magic, _ := reader.Peek(4); string(magic) == "GIF8" {
+		return sixel.DecodeGIF(reader)
+	}
+	img, _, err := image.Decode(reader)
 	return img, err
 }
 
