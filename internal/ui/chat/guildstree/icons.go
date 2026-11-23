@@ -36,6 +36,17 @@ func iconURL(guild discord.Guild) discord.URL {
 	return guild.IconURLWithType(discord.PNGImage) + "?size=64"
 }
 
+// IconURLs returns the URLs of the guild icons the tree shows.
+func (m Model) IconURLs() map[discord.URL]bool {
+	urls := make(map[discord.URL]bool, len(m.guildIcons))
+	for _, url := range m.guildIcons {
+		if url != "" {
+			urls[url] = true
+		}
+	}
+	return urls
+}
+
 // LoadImages returns the command that asks for the icons of the guilds not loaded yet, or nil.
 func (m Model) LoadImages() tview.Cmd {
 	if !m.showIcons() {

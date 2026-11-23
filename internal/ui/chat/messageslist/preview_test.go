@@ -117,3 +117,18 @@ func TestMessageContentComponents(t *testing.T) {
 		t.Fatalf("messageContent = %q, want %q", got, want)
 	}
 }
+
+func TestBoostText(t *testing.T) {
+	for _, test := range []struct {
+		message discord.Message
+		want    string
+	}{
+		{discord.Message{Type: discord.NitroBoostMessage}, "boosted the server!"},
+		{discord.Message{Type: discord.NitroBoostMessage, Content: "2"}, "boosted the server 2 times!"},
+		{discord.Message{Type: discord.NitroTier2Message}, "boosted the server. The server has reached level 2!"},
+	} {
+		if got := boostText(test.message); got != test.want {
+			t.Errorf("boostText(%v) = %q, want %q", test.message.Type, got, test.want)
+		}
+	}
+}

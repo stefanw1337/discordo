@@ -294,7 +294,7 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		}
 		title := ui.ChannelToString(msg.Channel, m.cfg.Icons, m.state) + " - " + consts.Name
 		// Not shown again soon.
-		commands := cmd.Batch{m.clearImages(), cmd.SetTitle(title), m.messagesList.SetChannel(&msg.Channel, msg.Messages), membersCmd}
+		commands := cmd.Batch{m.clearChannelImages(), cmd.SetTitle(title), m.messagesList.SetChannel(&msg.Channel, msg.Messages), membersCmd}
 		if jump := m.pendingJump; jump.channelID == msg.Channel.ID {
 			m.pendingJump = pendingJump{}
 			m.setFocus(paneMessagesList)

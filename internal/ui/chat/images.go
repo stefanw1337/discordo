@@ -96,14 +96,26 @@ func (m *Model) reloadImages(cell image.Point) tview.Cmd {
 
 // clearImages drops the images and returns a command that frees them in the terminal.
 func (m *Model) clearImages() tview.Cmd {
+	return m.clearImagesExcept(nil)
+}
+
+// clearChannelImages drops the images of the channel left, keeping the guild icons the guilds tree shows.
+func (m *Model) clearChannelImages() tview.Cmd {
+	return m.clearImagesExcept(m.guildsTree.IconURLs())
+}
+
+// clearImagesExcept drops the images but those of keep, and returns a command that frees them in the terminal.
+func (m *Model) clearImagesExcept(keep map[discord.URL]bool) tview.Cmd {
 	var cmds []tview.Cmd
-	for _, image := range m.images {
+	for url, image := range m.images {
+		if keep[url] {
+			continue
+		}
 		if kitty, ok := image.(tviewimage.Widget); ok {
 			cmds = append(cmds, kitty.Delete())
 		}
+		delete(m.images, url)
 	}
-
-	clear(m.images)
 	return cmd.Batch(append(cmds, m.sendImages()))
 }
 

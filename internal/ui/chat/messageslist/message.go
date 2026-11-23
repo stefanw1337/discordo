@@ -1,12 +1,14 @@
 package messageslist
 
 import (
+	"encoding/json"
 	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ayn2op/arikawa/v3/api"
 	"github.com/ayn2op/arikawa/v3/discord"
 	md "github.com/ayn2op/arikawa/v3/markdown"
 	"github.com/ayn2op/arikawa/v3/state"
@@ -68,6 +70,8 @@ func (m Model) writeMessage(builder *markdown.Builder, message discord.Message, 
 		m.drawDefaultMessage(builder, message, root, baseStyle, false)
 	case discord.ChannelPinnedMessage:
 		drawPinnedMessage(builder, message, baseStyle)
+	case discord.NitroBoostMessage, discord.NitroTier1Message, discord.NitroTier2Message, discord.NitroTier3Message:
+		m.drawLayout(builder, message, baseStyle, false, func() { builder.Write(boostText(message), baseStyle) })
 	case discord.ThreadCreatedMessage:
 		m.drawLayout(builder, message, baseStyle, false, func() {
 			builder.Write("started a thread: ", baseStyle)
@@ -86,6 +90,10 @@ func (m Model) writeMessage(builder *markdown.Builder, message discord.Message, 
 		}
 		if _, logged := unshownLogged.LoadOrStore(message.ID, true); !logged {
 			slog.Info("message that cannot be shown", "type", message.Type, "flags", message.Flags, "components", len(message.Components), "id", message.ID)
+			// The first of each kind is logged as Discord sent it, so that what it holds can be learned and shown.
+			if _, seen := unshownLogged.LoadOrStore(message.Type, true); !seen {
+				go logRawMessage(m.state.Client, message.ChannelID, message.ID)
+			}
 		}
 		m.drawLayout(builder, message, baseStyle, false, func() {
 			builder.Write("sent a kind of message discordo cannot show yet.", baseStyle.Dim(true).Italic(true))
@@ -463,6 +471,39 @@ func drawPinnedMessage(builder *markdown.Builder, message discord.Message, baseS
 // parse returns the parsed markdown of the content of message, with its mentions resolved from the state.
 func (m Model) parse(message discord.Message) ast.Node {
 	return md.ParseWithMessage([]byte(messageContent(message)), *m.state.Cabinet, &message)
+}
+
+// boostText returns what a message of a boost of the server says.
+func boostText(message discord.Message) string {
+	boosted := "boosted the server"
+	if times, err := strconv.Atoi(message.Content); err == nil && times > 1 {
+		boosted += " " + strconv.Itoa(times) + " times"
+	}
+	switch message.Type {
+	case discord.NitroTier1Message:
+		return boosted + ". The server has reached level 1!"
+	case discord.NitroTier2Message:
+		return boosted + ". The server has reached level 2!"
+	case discord.NitroTier3Message:
+		return boosted + ". The server has reached level 3!"
+	}
+	return boosted + "!"
+}
+
+// logRawMessage logs the message as Discord sends it, up to a length.
+func logRawMessage(client *api.Client, channelID discord.ChannelID, messageID discord.MessageID) {
+	endpoint := api.EndpointChannels + channelID.String() + "/messages?limit=1&around=" + messageID.String()
+	raw, err := client.RequestJSON[json.RawMessage]("GET", endpoint)
+	if err != nil {
+		slog.Error("failed to get message as sent", "id", messageID, "err", err)
+		return
+	}
+	const most = 6000
+	text := string(raw)
+	if len(text) > most {
+		text = text[:most]
+	}
+	slog.Info("message as sent", "id", messageID, "json", text)
 }
 
 // unshownLogged holds the IDs of the messages logged as ones that cannot be shown, which are drawn many times.
