@@ -66,6 +66,7 @@ func (k Keybind) MarshalTOML() ([]byte, error) {
 func (k Keybinds) Global() []keybind.Keybind {
 	return []keybind.Keybind{
 		k.ToggleGuildsTree.Keybind, k.ToggleMembersTree.Keybind, k.ToggleChannelsPicker.Keybind, k.ToggleMentionsInbox.Keybind,
+		k.ToggleSettings.Keybind,
 		k.ToggleMute.Keybind, k.ToggleDeafen.Keybind, k.LeaveVoice.Keybind,
 		k.ToggleHelp.Keybind, k.ToggleFullHelp.Keybind, k.Suspend.Keybind,
 		k.FocusGuildsTree.Keybind, k.FocusMembersTree.Keybind, k.FocusMessagesList.Keybind, k.FocusComposer.Keybind,
@@ -258,6 +259,8 @@ type Keybinds struct {
 	ToggleChannelsPicker Keybind `toml:"toggle_channels_picker"`
 	// Show the messages that recently mentioned you, your roles, @everyone or @here, in any server or DM, and jump to the one picked.
 	ToggleMentionsInbox Keybind `toml:"toggle_mentions_inbox"`
+	// Show the settings page, where settings are changed and saved to the config file.
+	ToggleSettings Keybind `toml:"toggle_settings"`
 	// Start or stop sending what the microphone captures to the voice channel joined.
 	ToggleMute Keybind `toml:"toggle_mute"`
 	// Stop or start playing what is said in the voice channel joined. Stopping also mutes.
@@ -336,6 +339,7 @@ func defaultKeybinds() Keybinds {
 		ToggleMembersTree:    key("toggle members", "alt+m"),
 		ToggleChannelsPicker: key("channels picker", "ctrl+k"),
 		ToggleMentionsInbox:  key("mentions", "alt+i"),
+		ToggleSettings:       key("settings", "alt+,"),
 		ToggleMute:           key("toggle mute", "alt+v"),
 		ToggleDeafen:         key("toggle deafen", "alt+d"),
 		LeaveVoice:           key("leave voice", "alt+l"),

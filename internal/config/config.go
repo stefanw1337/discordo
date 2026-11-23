@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -201,6 +203,8 @@ type (
 		// On Windows, whether discordo opens itself in Windows Terminal when it is started in the old console
 		// window, which shows neither emoji nor sharp images.
 		WindowsTerminal bool `toml:"windows_terminal"`
+		// Path is the file the config was read from, or would be, which the settings page writes to.
+		Path string `toml:"-"`
 		// The program opened by the `composer.open_editor` keybind. "default" uses `$EDITOR`.
 		Editor string `toml:"editor"`
 
@@ -349,7 +353,41 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.applyDefaults()
+	cfg.Path = path
 	return &cfg, nil
+}
+
+// SetValue sets the setting at key, as the names of its tables then its own, in the config file at path, which is made
+// if there is none, keeping the other settings in it. Comments in the file are not kept.
+func SetValue(path string, key []string, value any) error {
+	if len(key) == 0 {
+		return errors.New("no key")
+	}
+	values := map[string]any{}
+	if _, err := toml.DecodeFile(path, &values); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read config: %w", err)
+	}
+
+	table := values
+	for _, name := range key[:len(key)-1] {
+		next, ok := table[name].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			table[name] = next
+		}
+		table = next
+	}
+	table[key[len(key)-1]] = value
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("failed to make config folder: %w", err)
+	}
+	var out bytes.Buffer
+	out.WriteString("# Settings for discordo, which its settings page (alt+,) also changes. Everything that can be set is described at\n# https://github.com/stefanw1337/discordo/blob/main/docs/config.md\n\n")
+	if err := toml.NewEncoder(&out).Encode(values); err != nil {
+		return fmt.Errorf("failed to encode config: %w", err)
+	}
+	return os.WriteFile(path, out.Bytes(), 0o644)
 }
 
 func (cfg *Config) applyDefaults() {

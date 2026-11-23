@@ -162,6 +162,12 @@ func (m Model) refreshIcons() {
 	}
 }
 
+// RefreshIcons shows or hides the guild icons as the settings now say, asking for any not loaded.
+func (m Model) RefreshIcons() tview.Cmd {
+	m.refreshIcons()
+	return m.LoadImages()
+}
+
 // setImages keeps the images that were loaded, and shows the icons among them.
 func (m Model) setImages(changed images.ChangedMsg) {
 	clear(m.images)

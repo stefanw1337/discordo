@@ -33,6 +33,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/messageslist"
 	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	"github.com/ayn2op/discordo/internal/ui/chat/reactionspicker"
+	"github.com/ayn2op/discordo/internal/ui/chat/settings"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/ningen/v3"
@@ -78,6 +79,8 @@ type Model struct {
 	mentionsInbox mentionsinbox.Model
 	// messageMenu lists what can be done to the selected message.
 	messageMenu messagemenu.Model
+	// settings is the page that changes and saves settings.
+	settings settings.Model
 	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
 	pendingJump pendingJump
 
@@ -153,6 +156,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.profileCard = profilecard.NewModel(cfg, m.state)
 	m.mentionsInbox = mentionsinbox.NewModel(cfg, m.state)
 	m.messageMenu = messagemenu.NewModel(cfg)
+	m.settings = settings.NewModel(cfg)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -179,6 +183,7 @@ const (
 	overlayProfileCard
 	overlayMentionsInbox
 	overlayMessageMenu
+	overlaySettings
 )
 
 // pendingJump is a message in a channel being opened, to select once the channel loads.
@@ -206,6 +211,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.mentionsInbox.View()
 	case overlayMessageMenu:
 		return m.messageMenu.View()
+	case overlaySettings:
+		return m.settings.View()
 	default:
 		return nil
 	}
@@ -410,6 +417,15 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case messagemenu.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
+	case settings.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
+	case settings.ChangedMsg:
+		// Server icons are shown or hidden at once; the other settings take effect on the next start.
+		if msg.Live {
+			return m, m.guildsTree.RefreshIcons()
+		}
+		return m, nil
 	case messagesearch.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
@@ -489,6 +505,14 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.ToggleChannelsPicker.Keybind):
 			m.togglePicker()
 			return m, nil
+		case keybind.Matches(msg, keybinds.ToggleSettings.Keybind):
+			if m.overlay == overlaySettings {
+				m.overlay = overlayNone
+				return m, nil
+			}
+			m.settings.Open()
+			m.overlay = overlaySettings
+			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleMentionsInbox.Keybind):
 			if m.overlay == overlayMentionsInbox {
 				m.overlay = overlayNone
@@ -541,6 +565,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.mentionsInbox, cmd = m.mentionsInbox.Update(msg)
 	case overlayMessageMenu:
 		m.messageMenu, cmd = m.messageMenu.Update(msg)
+	case overlaySettings:
+		m.settings, cmd = m.settings.Update(msg)
 	default:
 		cmd = m.updatePane(m.focused, msg)
 	}

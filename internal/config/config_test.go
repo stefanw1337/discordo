@@ -102,6 +102,7 @@ func TestLoad(t *testing.T) {
 
 		defCfg := Default()
 		defCfg.applyDefaults()
+		defCfg.Path = path
 
 		if !reflect.DeepEqual(defCfg, *cfg) {
 			t.Fatalf("got = %+v, want = %+v", *cfg, defCfg)
@@ -149,5 +150,29 @@ func TestMIMETypesHas(t *testing.T) {
 				t.Fatalf("Has(%q) = %v, want %v", tt.mediaType, got, tt.wantAllowed)
 			}
 		})
+	}
+}
+
+func TestSetValue(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("mouse = false\n[ui.guilds_tree]\nauto_expand_folders = false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetValue(path, []string{"ui", "guilds_tree", "guild_icons"}, "icon"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetValue(path, []string{"timestamps", "format"}, "15:04"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Mouse || cfg.UI.GuildsTree.AutoExpandFolders || cfg.UI.GuildsTree.GuildIcons != "icon" || cfg.Timestamps.Format != "15:04" || cfg.Path != path {
+		t.Fatalf("settings were not kept: mouse=%v expand=%v icons=%q format=%q path=%q", cfg.Mouse,
+			cfg.UI.GuildsTree.AutoExpandFolders, cfg.UI.GuildsTree.GuildIcons, cfg.Timestamps.Format, cfg.Path)
+	}
+	if err := SetValue(filepath.Join(t.TempDir(), "new", "config.toml"), []string{"mouse"}, true); err != nil {
+		t.Fatalf("a new file: %v", err)
 	}
 }

@@ -698,6 +698,12 @@ Show the messages that recently mentioned you, your roles, @everyone or @here, i
 
 Default: `"alt+i"`
 
+## keybinds.toggle_settings
+
+Show the settings page, where settings are changed and saved to the config file.
+
+Default: `"alt+,"`
+
 ## keybinds.toggle_mute
 
 Start or stop sending what the microphone captures to the voice channel joined.

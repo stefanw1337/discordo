@@ -301,7 +301,8 @@ func (m Model) memberForMessage(message discord.Message) *discord.Member {
 
 	member, err := m.state.Cabinet.Member(message.GuildID, message.Author.ID)
 	if err != nil {
-		slog.Error("failed to get member from state", "guild_id", message.GuildID, "member_id", message.Author.ID, "err", err)
+		// An author who left the server is not a member, which is common.
+		slog.Debug("failed to get member from state", "guild_id", message.GuildID, "member_id", message.Author.ID, "err", err)
 		return nil
 	}
 	return member
