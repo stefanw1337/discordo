@@ -64,9 +64,24 @@ type imagePastedMsg []byte
 
 // PasteImage attaches the image on the clipboard, if there is one, as when ctrl+v is pressed in a terminal that keeps
 // it for itself and pastes only text, as Windows Terminal does.
+//
+// The key may also reach discordo, as when the terminal is set to leave it alone: an image is then pasted once.
 func (m *Model) PasteImage() tview.Cmd {
+	return m.pasteImageOnce()
+}
+
+// pasteImageOnce pastes the clipboard's image, unless it was pasted just now.
+func (m *Model) pasteImageOnce() tview.Cmd {
+	now := time.Now()
+	if now.Sub(m.lastImagePaste) < pasteDedupe {
+		return nil
+	}
+	m.lastImagePaste = now
 	return pasteImage()
 }
+
+// pasteDedupe is how soon after a paste of an image another is taken to be the same key press, seen twice.
+const pasteDedupe = 500 * time.Millisecond
 
 func pasteImage() tview.Cmd {
 	return cmd.Task(func() tview.Msg {

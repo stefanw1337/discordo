@@ -61,6 +61,8 @@ type Model struct {
 	// cursor is the byte offset of the cursor in text, and history what they were before each change, for undo.
 	cursor  int
 	history []edit
+	// lastImagePaste is when an image was last pasted, so that one key press seen twice pastes it once.
+	lastImagePaste time.Time
 
 	disabled bool
 
@@ -662,7 +664,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.Paste.Keybind):
 			slog.Info("paste")
 			m.pasteText()
-			return m, pasteImage()
+			return m, m.pasteImageOnce()
 		case keybind.Matches(msg, keybinds.Send.Keybind):
 			if m.autocomplete.Visible() {
 				return m, m.complete()

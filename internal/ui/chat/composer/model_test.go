@@ -6,6 +6,7 @@ import (
 	"maps"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/gateway"
@@ -529,5 +530,19 @@ func TestModelProcessTextChannels(t *testing.T) {
 	}
 	if items := channels.Items(state, &channel, "sc", 5); len(items) != 1 || items[0].Insert() != "#📰|sc-news" {
 		t.Fatalf("items = %v, want #📰|sc-news", items)
+	}
+}
+
+func TestPasteImageOnce(t *testing.T) {
+	c, _ := newTestModel(t)
+	if c.PasteImage() == nil {
+		t.Fatal("the first paste was not made")
+	}
+	if c.pasteImageOnce() != nil {
+		t.Fatal("the same key press, seen twice, pasted twice")
+	}
+	c.lastImagePaste = c.lastImagePaste.Add(-time.Second)
+	if c.PasteImage() == nil {
+		t.Fatal("a later paste was not made")
 	}
 }
