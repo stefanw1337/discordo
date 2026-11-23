@@ -496,6 +496,13 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case gifpicker.SelectedMsg:
 		m.overlay = overlayNone
 		return m, m.composer.SendGIF(msg.GIF.URL)
+	case settings.ExportMsg:
+		return m, m.exportAccount(msg.Invites)
+	case settings.ImportMsg:
+		return m, m.importProfile()
+	case settings.NoteMsg:
+		m.settings, _ = m.settings.Update(msg)
+		return m, nil
 	case settings.OpenProgramsMsg:
 		m.overlay = overlayPrograms
 		return m, m.programs.Open()

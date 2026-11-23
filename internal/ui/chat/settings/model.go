@@ -37,6 +37,16 @@ type Setting struct {
 // OpenProgramsMsg opens the page of the programs shown as the user's activity.
 type OpenProgramsMsg struct{}
 
+// ExportMsg asks to export the account into a folder beside the config file, making invites to the servers if
+// Invites is set.
+type ExportMsg struct{ Invites bool }
+
+// ImportMsg asks to pick an export and set the profile to it.
+type ImportMsg struct{}
+
+// NoteMsg is shown under the settings, such as how an export went.
+type NoteMsg string
+
 // textSetting and boolSetting make the Get and Set of a setting of the field field returns.
 func textSetting(field func(*config.Config) *string) (func(*config.Config) any, func(*config.Config, any)) {
 	return func(cfg *config.Config) any { return *field(cfg) },
@@ -79,7 +89,10 @@ func Settings() []Setting {
 	g, s = boolSetting(func(c *config.Config) *bool { return &c.Activity.Enabled })
 	settings = append(settings,
 		newSetting("Share what I'm doing", []string{"activity", "enabled"}, []Choice{{"off", false}, {"on", true}}, true, g, s),
-		Setting{Label: "Programs shown as my activity", Open: OpenProgramsMsg{}})
+		Setting{Label: "Programs shown as my activity", Open: OpenProgramsMsg{}},
+		Setting{Label: "Export my account (profile, servers, friends, settings)", Open: ExportMsg{}},
+		Setting{Label: "Export my account, making invites to my servers", Open: ExportMsg{Invites: true}},
+		Setting{Label: "Import profile from an export (name, avatar, About me)", Open: ImportMsg{}})
 	for _, b := range []struct {
 		label string
 		key   []string
@@ -158,6 +171,8 @@ type Model struct {
 	// restart is set once a setting that is applied on the next start was changed.
 	restart bool
 	err     error
+	// note is what NoteMsg last said.
+	note string
 }
 
 func NewModel(cfg *config.Config) Model {
@@ -168,7 +183,7 @@ func NewModel(cfg *config.Config) Model {
 func (m *Model) Open() {
 	// The devices are listed again, as headsets come and go.
 	m.settings = Settings()
-	m.restart, m.err = false, nil
+	m.restart, m.err, m.note = false, nil, ""
 	m.Model.SetItems(m.items())
 }
 
@@ -192,7 +207,9 @@ func (m Model) items() picker.Items {
 		items = append(items, picker.Item{Content: text.Rich(spans...).Wrapping(text.WrappingNone), FilterText: setting.Label, Reference: i})
 	}
 	note := "Saved to " + m.cfg.Path
-	if m.err != nil {
+	if m.note != "" {
+		note = m.note
+	} else if m.err != nil {
 		note = "Could not save: " + m.err.Error()
 	} else if m.restart {
 		note = "Saved. Start discordo again for the settings marked (on restart)."
@@ -216,6 +233,11 @@ type CancelMsg struct{}
 var _ tview.Model[Model] = Model{}
 
 func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
+	if note, ok := msg.(NoteMsg); ok {
+		m.note = string(note)
+		m.Model.ReplaceItems(m.items())
+		return m, nil
+	}
 	if index, ok := msg.(selectedMsg); ok {
 		if int(index) < 0 || int(index) >= len(m.settings) {
 			return m, nil
@@ -223,6 +245,10 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		setting := m.settings[index]
 		if setting.Open != nil {
 			open := setting.Open
+			if _, ok := open.(ExportMsg); ok {
+				m.note = "Exporting…"
+				m.Model.ReplaceItems(m.items())
+			}
 			return m, cmd.Task(func() tview.Msg { return open })
 		}
 		next := setting.Choices[(current(setting, m.cfg)+1)%len(setting.Choices)]

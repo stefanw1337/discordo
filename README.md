@@ -86,6 +86,15 @@ Typed in the message box and sent with enter:
 
 - `/gif cats` searches GIFs, as Discord's GIF picker does, and shows the one selected beside the list; enter sends it. `/gif` alone shows the GIFs trending.
 
+### Account export
+
+The settings page (ctrl+s) exports the account into a folder beside the config file: the profile and avatar, the
+servers with links to join them again, the friends and groups, and discordo's own settings, with `checklist.md` of
+what to do to bring it all back. "Export my account, making invites to my servers" also makes a link that does not
+expire to each server that has no vanity link, where you may invite. "Import profile from an export" sets the
+display name, avatar, About me and pronouns of the account logged in; the servers and friends are added back by
+hand from the checklist, as Discord takes doing that in bulk for spam.
+
 ## Configuration
 
 The configuration file allows you to configure and customize the behavior, keybindings, and theme of the application.
