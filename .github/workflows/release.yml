@@ -37,7 +37,9 @@ jobs:
           - { os: ubuntu-22.04-arm, name: linux_arm64 }
           - { os: windows-latest, name: windows_x86_64, mpv: x86_64 }
           - { os: windows-11-arm, name: windows_arm64, mpv: aarch64 }
-          - { os: macos-latest, name: macos_arm64 }
+          # Built on the Intel runner too, for Apple silicon, as GitHub's Apple silicon runners have gone unassigned
+          # for long enough that the build was cancelled.
+          - { os: macos-26-intel, name: macos_arm64, goarch: arm64, cc: clang -arch arm64 }
           - { os: macos-26-intel, name: macos_x86_64 }
           # For Termux. Voice needs the audio libraries of a desktop, so this one is text, images and streams' video.
           - { os: ubuntu-24.04, name: android_arm64, android: true }
@@ -64,6 +66,10 @@ jobs:
       - name: Build
         if: ${{ !matrix.android }}
         shell: bash
+        env:
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.cc }}
+          CGO_ENABLED: ${{ matrix.goarch && '1' || '' }}
         run: |
           mkdir -p dist
           go build -trimpath -ldflags=-s -o "dist/discordo$([ "$RUNNER_OS" = Windows ] && echo .exe)" .
