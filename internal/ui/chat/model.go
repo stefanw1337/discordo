@@ -26,6 +26,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/composer"
 	"github.com/ayn2op/discordo/internal/ui/chat/forumposts"
 	"github.com/ayn2op/discordo/internal/ui/chat/friendrequests"
+	"github.com/ayn2op/discordo/internal/ui/chat/gifpicker"
 	"github.com/ayn2op/discordo/internal/ui/chat/guildstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/memberstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/mentionsinbox"
@@ -97,6 +98,8 @@ type Model struct {
 	settings settings.Model
 	// programs is the page of the programs shown as the user's activity.
 	programs programs.Model
+	// gifPicker searches GIFs to send, opened by "/gif" in the composer.
+	gifPicker gifpicker.Model
 	// activity is what the user is shown doing.
 	activity sharedActivity
 	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
@@ -181,6 +184,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.messageMenu = messagemenu.NewModel(cfg)
 	m.settings = settings.NewModel(cfg)
 	m.programs = programs.NewModel(cfg)
+	m.gifPicker = gifpicker.NewModel(cfg, m.state)
 
 	m.guildsTreeVisible = cfg.Sidebar.Visible
 	m.membersTreeVisible = cfg.MembersTree.Visible
@@ -210,6 +214,7 @@ const (
 	overlayMessageMenu
 	overlaySettings
 	overlayPrograms
+	overlayGIFs
 )
 
 // pendingJump is a message in a channel being opened, to select once the channel loads.
@@ -243,6 +248,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.settings.View()
 	case overlayPrograms:
 		return m.programs.View()
+	case overlayGIFs:
+		return m.gifPicker.View()
 	default:
 		return nil
 	}
@@ -480,6 +487,15 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case settings.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil
+	case composer.GIFSearchMsg:
+		m.overlay = overlayGIFs
+		return m, m.gifPicker.Open(msg.Query)
+	case gifpicker.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
+	case gifpicker.SelectedMsg:
+		m.overlay = overlayNone
+		return m, m.composer.SendGIF(msg.GIF.URL)
 	case settings.OpenProgramsMsg:
 		m.overlay = overlayPrograms
 		return m, m.programs.Open()
@@ -678,6 +694,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.settings, cmd = m.settings.Update(msg)
 	case overlayPrograms:
 		m.programs, cmd = m.programs.Update(msg)
+	case overlayGIFs:
+		m.gifPicker, cmd = m.gifPicker.Update(msg)
 	case overlayFriendRequests:
 		m.friendRequests, cmd = m.friendRequests.Update(msg)
 	default:

@@ -35,6 +35,24 @@ type EditLastMsg struct{}
 // SentMsg reports that the composer sent a message.
 type SentMsg struct{}
 
+// GIFSearchMsg asks for GIFs of Query to pick one to send, as "/gif Query" typed in the composer does.
+type GIFSearchMsg struct{ Query string }
+
+// gifQuery returns the query of a "/gif" command, and whether text is one.
+func gifQuery(text string) (string, bool) {
+	if text == "/gif" {
+		return "", true
+	}
+	query, ok := strings.CutPrefix(text, "/gif ")
+	return strings.TrimSpace(query), ok
+}
+
+// SendGIF sends the GIF page url, replying as the message being written would.
+func (m *Model) SendGIF(url string) tview.Cmd {
+	m.setText(url, len(url))
+	return m.send()
+}
+
 // PostedMsg reports that the composer started Post, a thread of a forum.
 type PostedMsg struct{ Post discord.Channel }
 
@@ -193,6 +211,12 @@ func (m *Model) send() tview.Cmd {
 	text := strings.TrimSpace(m.text)
 	if text == "" && len(m.sendMessageData.Files) == 0 {
 		return nil
+	}
+
+	// "/gif cats" searches GIFs instead of being sent; what is replied to is kept for the GIF.
+	if query, ok := gifQuery(text); ok && m.editing == nil && m.post == nil && len(m.sendMessageData.Files) == 0 {
+		m.setText("", 0)
+		return cmd.Task(func() tview.Msg { return GIFSearchMsg{Query: query} })
 	}
 
 	typed := text

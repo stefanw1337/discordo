@@ -137,6 +137,7 @@ func (m *Model) sendImages() tview.Cmd {
 	var command tview.Cmd
 	m.reactionsPicker, command = m.reactionsPicker.Update(images)
 	m.profileCard, _ = m.profileCard.Update(images)
+	m.gifPicker, _ = m.gifPicker.Update(images)
 	return cmd.Batch{command, m.updatePane(paneMessagesList, images), m.updatePane(paneComposer, images), m.updatePane(paneGuildsTree, images)}
 }
 

@@ -80,6 +80,12 @@ Set the value of the `DISCORDO_TOKEN` environment variable to the authentication
 DISCORDO_TOKEN="OTI2MDU5NTQxNDE2Nzc5ODA2.Yc2KKA.2iZ-5JxgxG-9Ub8GHzBSn-NJjNg" discordo
 ```
 
+### Commands
+
+Typed in the message box and sent with enter:
+
+- `/gif cats` searches GIFs, as Discord's GIF picker does, and shows the one selected beside the list; enter sends it. `/gif` alone shows the GIFs trending.
+
 ## Configuration
 
 The configuration file allows you to configure and customize the behavior, keybindings, and theme of the application.
