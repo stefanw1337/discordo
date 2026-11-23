@@ -45,5 +45,5 @@ func TestFoundShowsAndPreviewsTheFirst(t *testing.T) {
 	if sent, ok := run(t, command).(SelectedMsg); !ok || sent.GIF.URL != "https://tenor.com/view/cat-1" {
 		t.Fatalf("sent %#v", sent)
 	}
-	var _ tview.Widget = m.View()
+	_ = m.View()
 }

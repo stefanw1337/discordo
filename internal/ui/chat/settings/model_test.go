@@ -53,7 +53,12 @@ func TestSettingsCoverChoices(t *testing.T) {
 		if setting.Open != nil {
 			continue
 		}
-		if setting.Get == nil || setting.Set == nil || len(setting.Choices) < 2 {
+		// A machine without sound devices, such as CI's, lists only the system's default.
+		least := 2
+		if setting.Label == "Microphone" || setting.Label == "Speakers" {
+			least = 1
+		}
+		if setting.Get == nil || setting.Set == nil || len(setting.Choices) < least {
 			t.Fatalf("setting %q is incomplete", setting.Label)
 		}
 		if current(setting, &cfg) < 0 {

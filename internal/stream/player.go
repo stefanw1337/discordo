@@ -117,12 +117,12 @@ func (p *player) write(frame []byte, timestamp uint32) error {
 // stop closes the player's input, which ends it, and kills it if it has not ended a moment later.
 func (p *player) stop() {
 	p.once.Do(func() {
-		p.stdin.Close()
+		_ = p.stdin.Close()
 		select {
 		case <-p.done:
 		case <-time.After(time.Second):
 			if p.cmd.Process != nil {
-				p.cmd.Process.Kill()
+				_ = p.cmd.Process.Kill()
 			}
 			<-p.done
 		}

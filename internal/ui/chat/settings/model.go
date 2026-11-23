@@ -184,7 +184,7 @@ func (m *Model) Open() {
 	// The devices are listed again, as headsets come and go.
 	m.settings = Settings()
 	m.restart, m.err, m.note = false, nil, ""
-	m.Model.SetItems(m.items())
+	m.SetItems(m.items())
 }
 
 func (m Model) items() picker.Items {
@@ -235,7 +235,7 @@ var _ tview.Model[Model] = Model{}
 func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	if note, ok := msg.(NoteMsg); ok {
 		m.note = string(note)
-		m.Model.ReplaceItems(m.items())
+		m.ReplaceItems(m.items())
 		return m, nil
 	}
 	if index, ok := msg.(selectedMsg); ok {
@@ -247,7 +247,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			open := setting.Open
 			if _, ok := open.(ExportMsg); ok {
 				m.note = "Exporting…"
-				m.Model.ReplaceItems(m.items())
+				m.ReplaceItems(m.items())
 			}
 			return m, cmd.Task(func() tview.Msg { return open })
 		}
@@ -258,7 +258,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			slog.Error("failed to save setting", "key", setting.Key, "err", m.err)
 		}
 		m.restart = m.restart || !setting.Live
-		m.Model.ReplaceItems(m.items())
+		m.ReplaceItems(m.items())
 		changed := ChangedMsg{Key: setting.Key, Live: setting.Live}
 		return m, cmd.Task(func() tview.Msg { return changed })
 	}

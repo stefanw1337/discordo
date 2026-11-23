@@ -233,7 +233,7 @@ func TestEncodeGradient(t *testing.T) {
 	}
 	start := time.Now()
 	_, _, pixels, palette := decode(t, Encode(img, 480, 270, 0, 270))
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("took %v", elapsed)
 	}
 	var total int

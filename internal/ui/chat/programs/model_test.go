@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ayn2op/discordo/internal/config"
-	"github.com/ayn2op/tview"
 )
 
 func TestAddRenameAndSave(t *testing.T) {
@@ -34,5 +33,5 @@ func TestAddRenameAndSave(t *testing.T) {
 	if got.Activity.Enabled {
 		t.Fatal("the page turned sharing on by itself")
 	}
-	var _ tview.Widget = m.View()
+	_ = m.View()
 }

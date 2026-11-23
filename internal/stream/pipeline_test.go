@@ -172,7 +172,9 @@ func TestH264Pipeline(t *testing.T) {
 		shuffleNearby(shuffled, r)
 		played := playAll(t, shuffled, h264Depacketizer{})
 		out := filepath.Join(dir, "reordered.h264")
-		os.WriteFile(out, bytes.Join(played, nil), 0o644)
+		if err := os.WriteFile(out, bytes.Join(played, nil), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if got := decodedFrames(t, ffprobe, "h264", out); got != 60 {
 			t.Fatalf("decoded %d frames, want all 60", got)
 		}
@@ -189,7 +191,9 @@ func TestH264Pipeline(t *testing.T) {
 		}
 		played := playAll(t, lost, h264Depacketizer{})
 		out := filepath.Join(dir, "lost.h264")
-		os.WriteFile(out, bytes.Join(played, nil), 0o644)
+		if err := os.WriteFile(out, bytes.Join(played, nil), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		got := decodedFrames(t, ffprobe, "h264", out)
 		if got != 45 {
 			t.Fatalf("decoded %d frames, want 45: frames 0 to 24 and 40 to 59", got)
@@ -238,10 +242,14 @@ func TestVP8Pipeline(t *testing.T) {
 	var out bytes.Buffer
 	w := ivfWriter{w: &out}
 	for i, f := range played {
-		w.writeFrame(f, uint32(i)*3000)
+		if err := w.writeFrame(f, uint32(i)*3000); err != nil {
+			t.Fatal(err)
+		}
 	}
 	file := filepath.Join(dir, "out.ivf")
-	os.WriteFile(file, out.Bytes(), 0o644)
+	if err := os.WriteFile(file, out.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if got := decodedFrames(t, ffprobe, "ivf", file); got != 30 {
 		t.Fatalf("decoded %d frames, want all 30", got)
 	}

@@ -48,7 +48,7 @@ func dialTransport(ctx context.Context, addr string, ssrc uint32) (*transport, e
 
 	address, port, err := discoverIP(ctx, conn, ssrc)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
@@ -61,7 +61,7 @@ func dialTransport(ctx context.Context, addr string, ssrc uint32) (*transport, e
 //
 // https://docs.discord.food/topics/voice-connections#ip-discovery
 func discoverIP(ctx context.Context, conn net.Conn, ssrc uint32) (string, uint16, error) {
-	stop := context.AfterFunc(ctx, func() { conn.SetReadDeadline(time.Now()) })
+	stop := context.AfterFunc(ctx, func() { _ = conn.SetReadDeadline(time.Now()) })
 	defer stop()
 
 	var request [74]byte
@@ -82,7 +82,7 @@ func discoverIP(ctx context.Context, conn net.Conn, ssrc uint32) (string, uint16
 	if !stop() {
 		return "", 0, ctx.Err()
 	}
-	conn.SetReadDeadline(time.Time{})
+	_ = conn.SetReadDeadline(time.Time{})
 
 	address := response[8:72]
 	end := bytes.IndexByte(address, 0)

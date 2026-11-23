@@ -17,6 +17,7 @@ import (
 	"github.com/ayn2op/tview/picker"
 	"github.com/ayn2op/tview/text"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 )
 
 type Model struct {
@@ -67,7 +68,7 @@ func (m *Model) Open() {
 		}
 		items = append(items,
 			picker.Item{Content: text.Rich(text.Span{Text: "👤 Profile of " + name}), FilterText: name, Reference: profile{user}},
-			picker.Item{Content: text.Rich(text.Span{Text: "✓ Accept " + name, Style: tcell.StyleDefault.Foreground(tcell.ColorGreen)}), FilterText: name, Reference: action{user, true}},
+			picker.Item{Content: text.Rich(text.Span{Text: "✓ Accept " + name, Style: tcell.StyleDefault.Foreground(color.Green)}), FilterText: name, Reference: action{user, true}},
 			picker.Item{Content: text.Rich(text.Span{Text: "✗ Ignore " + name, Style: tcell.StyleDefault.Dim(true)}), FilterText: name, Reference: action{user, false}},
 		)
 	}

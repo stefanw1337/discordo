@@ -289,7 +289,7 @@ func (s *Screen) hashCells(x, y, width, height int) uint64 {
 	for row := y; row < y+height; row++ {
 		for col := x; col < x+width; col++ {
 			str, style, _ := s.Get(col, row)
-			fmt.Fprint(h, str, style)
+			_, _ = fmt.Fprint(h, str, style)
 		}
 	}
 	return h.Sum64()

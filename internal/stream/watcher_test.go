@@ -47,13 +47,13 @@ func udpPair(t *testing.T, key [32]byte) (*transport, net.PacketConn) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { server.Close() })
+	t.Cleanup(func() { _ = server.Close() })
 	conn, err := net.Dial("udp", server.LocalAddr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	tr := &transport{conn: conn, ssrc: 77, closed: make(chan struct{})}
-	t.Cleanup(func() { tr.close() })
+	t.Cleanup(func() { _ = tr.close() })
 	if err := tr.useKey(udp.ModeAES256GCM, key); err != nil {
 		t.Fatal(err)
 	}
@@ -86,9 +86,9 @@ func TestTransport(t *testing.T) {
 		packet := aead.Seal(append([]byte(nil), header...), nonce[:], body, header)
 		packet = append(packet, nonce[:4]...)
 		// RTCP and pings before it are skipped.
-		server.WriteTo([]byte{0x13, 0x37, 0xF0, 0x0D, 0, 0, 0, 0}, client)
-		server.WriteTo(append([]byte{0x80, 200, 0, 1}, make([]byte, 12)...), client)
-		server.WriteTo(packet, client)
+		_, _ = server.WriteTo([]byte{0x13, 0x37, 0xF0, 0x0D, 0, 0, 0, 0}, client)
+		_, _ = server.WriteTo(append([]byte{0x80, 200, 0, 1}, make([]byte, 12)...), client)
+		_, _ = server.WriteTo(packet, client)
 
 		got, err := tr.readRTP(make([]byte, maxPacketSize))
 		if err != nil || got.ssrc != 20 || got.sequence != 3 || !got.marker || string(got.payload) != string([]byte{0x41, 0xAB}) {
@@ -101,7 +101,7 @@ func TestTransport(t *testing.T) {
 			t.Fatal(err)
 		}
 		buf := make([]byte, 64)
-		server.SetReadDeadline(time.Now().Add(time.Second))
+		_ = server.SetReadDeadline(time.Now().Add(time.Second))
 		n, _, err := server.ReadFrom(buf)
 		if err != nil {
 			t.Fatal(err)
@@ -153,7 +153,7 @@ func TestReceiverPlays(t *testing.T) {
 
 	t.Run("other SSRCs are not played", func(t *testing.T) {
 		before := r.jitter.next
-		r.handlePacket(rtpPacket{payloadType: payloadH264, sequence: 3, timestamp: 30, marker: true, ssrc: 99, payload: []byte{0x41}})
+		_ = r.handlePacket(rtpPacket{payloadType: payloadH264, sequence: 3, timestamp: 30, marker: true, ssrc: 99, payload: []byte{0x41}})
 		if r.jitter.next != before {
 			t.Fatal("a packet of another SSRC was taken")
 		}
@@ -202,9 +202,9 @@ func TestReceiverPlaysAudio(t *testing.T) {
 	}
 	r.audioSSRC.Store(30)
 
-	r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 30, sequence: 1, payload: []byte{0xF8, 0xFF, 0xFE}})
+	_ = r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 30, sequence: 1, payload: []byte{0xF8, 0xFF, 0xFE}})
 	// Audio of anyone else is not played.
-	r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 31, sequence: 1, payload: []byte{1}})
+	_ = r.handlePacket(rtpPacket{payloadType: payloadOpus, ssrc: 31, sequence: 1, payload: []byte{1}})
 	if len(sink.packets) != 1 || string(sink.packets[0]) != string([]byte{0xF8, 0xFF, 0xFE}) {
 		t.Fatalf("played %v, want the owner's packet", sink.packets)
 	}

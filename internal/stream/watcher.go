@@ -180,7 +180,7 @@ func (w *Watcher) watch(ctx context.Context, key Key) error {
 		case event := <-deleted:
 			return deleteError(event)
 		case <-timeout.C:
-			return errors.New("Discord did not answer the request to watch the stream")
+			return errors.New("no answer from Discord to the request to watch the stream")
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -526,7 +526,7 @@ func (r *receiver) stop() {
 		defer sink.StopStream()
 	}
 	if r.transport != nil {
-		r.transport.close()
+		_ = r.transport.close()
 	}
 	// The player is the receiving goroutine's until it returns.
 	if r.receiving {

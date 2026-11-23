@@ -11,6 +11,7 @@ import (
 	"github.com/ayn2op/tview/text"
 	"github.com/ayn2op/tview/tree"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 )
 
 // The server bar, which guild_icons = "bar" shows as Discord does, lists the servers by their icons, large, down the
@@ -51,7 +52,7 @@ func initials(name string, most int) string {
 func initialsSpan(name string, width int) text.Span {
 	label := initials(name, width)
 	label += strings.Repeat(" ", max(width-len([]rune(label)), 0))
-	return text.Span{Text: label, Style: tcell.StyleDefault.Background(initialsBackground).Foreground(tcell.ColorWhite).Bold(true)}
+	return text.Span{Text: label, Style: tcell.StyleDefault.Background(initialsBackground).Foreground(color.White).Bold(true)}
 }
 
 // isIconSpan reports whether span is part of an icon: a sixel marker, or initials.
@@ -240,7 +241,7 @@ func (m Model) barView() bar {
 }
 
 func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
-	pill := tcell.StyleDefault.Foreground(tcell.ColorWhite)
+	pill := tcell.StyleDefault.Foreground(color.White)
 	// Scrolled no further than the bar stays full, as the wheel can scroll it past its end.
 	shown := max((area.Height+1)/(barRows+1), 1)
 	offset := max(min(b.offset, len(b.entries)-shown), 0)
@@ -256,7 +257,7 @@ func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
 			case entry.open:
 				screen.Put(area.X, y+row, "▌", pill)
 			case entry.mentions > 0 && row == barRows-1:
-				screen.Put(area.X, y+row, "●", tcell.StyleDefault.Foreground(tcell.ColorRed))
+				screen.Put(area.X, y+row, "●", tcell.StyleDefault.Foreground(color.Red))
 			case entry.unread && row == barRows/2:
 				screen.Put(area.X, y+row, "•", pill)
 			}
