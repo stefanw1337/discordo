@@ -96,6 +96,10 @@ func (m Model) volumeKeybinds() []keybind.Keybind {
 func (m Model) ShortHelp() []keybind.Keybind {
 	cfg := m.cfg.Keybinds.GuildsTree
 	shortHelp := append(uitree.SelectHelp(m.root, m.current, cfg.TreeKeybinds), m.selectCurrentKeybind())
+	// In the server bar, j and k move in the channels of the server open, and these move between servers.
+	if m.showsBar() {
+		shortHelp = append(shortHelp, cfg.PreviousGuild.Keybind, cfg.NextGuild.Keybind)
+	}
 	shortHelp = append(shortHelp, m.toggleVoiceKeybinds()...)
 	shortHelp = append(shortHelp, m.volumeKeybinds()...)
 	shortHelp = append(shortHelp, m.watchKeybinds()...)
@@ -111,7 +115,7 @@ func (m Model) FullHelp() [][]keybind.Keybind {
 	selectGroup = append(selectGroup, m.collapseKeybinds()...)
 
 	return [][]keybind.Keybind{
-		{cfg.SelectUp.Keybind, cfg.SelectDown.Keybind, cfg.SelectTop.Keybind, cfg.SelectBottom.Keybind},
+		{cfg.SelectUp.Keybind, cfg.SelectDown.Keybind, cfg.SelectTop.Keybind, cfg.SelectBottom.Keybind, cfg.PreviousGuild.Keybind, cfg.NextGuild.Keybind},
 		{cfg.ScrollUp.Keybind, cfg.ScrollDown.Keybind, cfg.ScrollTop.Keybind, cfg.ScrollBottom.Keybind, cfg.ScrollLeft.Keybind, cfg.ScrollRight.Keybind},
 		selectGroup,
 		{cfg.SelectPreviousUnread.Keybind, cfg.SelectNextUnread.Keybind, cfg.MarkRead.Keybind, m.favoriteKeybind()},
