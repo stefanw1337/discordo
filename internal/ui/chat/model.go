@@ -62,6 +62,8 @@ type Model struct {
 	draggingSidebar bool
 	// pasteKeys is sent to when ctrl+v is pressed in a terminal that keeps it for itself.
 	pasteKeys chan struct{}
+	// profileReturn is the overlay that the profile card was opened from, shown again when it is closed.
+	profileReturn overlay
 	// ringing is the call ringing the user, if any.
 	ringing *incomingCall
 	// friendRequests lists the friend requests sent to the user.
@@ -429,10 +431,16 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		m.overlay = overlayNone
 		return m, nil
 	case profilecard.OpenMsg:
+		// A profile opened from the friend requests goes back to them when it is closed.
+		m.profileReturn = overlayNone
+		if m.overlay == overlayFriendRequests {
+			m.profileReturn = overlayFriendRequests
+		}
 		m.overlay = overlayProfileCard
 		return m, m.profileCard.Open(msg.User, msg.GuildID)
 	case profilecard.CancelMsg:
-		m.overlay = overlayNone
+		m.overlay = m.profileReturn
+		m.profileReturn = overlayNone
 		return m, nil
 	case messageslist.OpenThreadMsg:
 		return m, m.openThread(msg.Thread)

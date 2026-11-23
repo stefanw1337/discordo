@@ -9,6 +9,7 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 	"github.com/ayn2op/arikawa/v3/utils/httputil"
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/ui/chat/profilecard"
 	uipicker "github.com/ayn2op/discordo/internal/ui/picker"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
@@ -42,6 +43,9 @@ func Pending(state *ningen.State) []discord.User {
 	return users
 }
 
+// profile is looking at the profile of a user who sent a request, before answering it.
+type profile struct{ user discord.User }
+
 // action is accepting or ignoring the request of a user.
 type action struct {
 	user   discord.User
@@ -62,6 +66,7 @@ func (m *Model) Open() {
 			name += " (" + user.Username + ")"
 		}
 		items = append(items,
+			picker.Item{Content: text.Rich(text.Span{Text: "👤 Profile of " + name}), FilterText: name, Reference: profile{user}},
 			picker.Item{Content: text.Rich(text.Span{Text: "✓ Accept " + name, Style: tcell.StyleDefault.Foreground(tcell.ColorGreen)}), FilterText: name, Reference: action{user, true}},
 			picker.Item{Content: text.Rich(text.Span{Text: "✗ Ignore " + name, Style: tcell.StyleDefault.Dim(true)}), FilterText: name, Reference: action{user, false}},
 		)
@@ -107,8 +112,11 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 
 func (m Model) View() tview.Widget {
 	return m.Model.View(func(item picker.Item) tview.Msg {
-		if a, ok := item.Reference.(action); ok {
-			return selectedMsg{a}
+		switch ref := item.Reference.(type) {
+		case action:
+			return selectedMsg{ref}
+		case profile:
+			return profilecard.OpenMsg{User: ref.user}
 		}
 		return nil
 	}, CancelMsg{})
