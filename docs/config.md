@@ -720,6 +720,18 @@ Show the messages that recently mentioned you, your roles, @everyone or @here, i
 
 Default: `"alt+i"`
 
+## keybinds.widen_sidebar
+
+Widen the server list. Its right edge can also be dragged with the mouse.
+
+Default: `"alt+="`
+
+## keybinds.narrow_sidebar
+
+Narrow the server list.
+
+Default: `"alt+-"`
+
 ## keybinds.toggle_settings
 
 Show the settings page, where settings are changed and saved to the config file.

@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/ayn2op/discordo/internal/config"
-	"github.com/ayn2op/discordo/internal/voice"
 	uipicker "github.com/ayn2op/discordo/internal/ui/picker"
+	"github.com/ayn2op/discordo/internal/voice"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/picker"

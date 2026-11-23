@@ -55,6 +55,8 @@ type Model struct {
 	focused pane
 	// guildsTreeVisible reports whether the guilds tree is shown left of the messages.
 	guildsTreeVisible bool
+	// draggingSidebar is set while the right edge of the server list is being dragged.
+	draggingSidebar bool
 	// membersTreeVisible reports whether the members tree is shown right of the messages when the selected channel has members.
 	membersTreeVisible bool
 	// overlay is the picker shown on top, which takes all input.
@@ -278,6 +280,9 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	switch msg := msg.(type) {
 	case gateway.Event:
 		return m, cmd.Batch{m.applyEvent(msg), listen(m.events)}
+	case sidebarDragMsg:
+		m.dragSidebar(msg)
+		return m, nil
 	case guildstree.VoiceMsg:
 		return m, m.updatePane(paneGuildsTree, msg)
 	case tview.FocusMsg:
@@ -514,6 +519,12 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleChannelsPicker.Keybind):
 			m.togglePicker()
+			return m, nil
+		case keybind.Matches(msg, keybinds.WidenSidebar.Keybind):
+			m.setSidebarWidth(m.cfg.Sidebar.WidthPercent + sidebarStep)
+			return m, nil
+		case keybind.Matches(msg, keybinds.NarrowSidebar.Keybind):
+			m.setSidebarWidth(m.cfg.Sidebar.WidthPercent - sidebarStep)
 			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleSettings.Keybind):
 			if m.overlay == overlaySettings {
@@ -765,10 +776,10 @@ func (m Model) View() tview.Widget {
 	}
 	if m.guildsTreeVisible {
 		width := m.cfg.Sidebar.WidthPercent
-		main = row.New(
+		main = splitter{Widget: row.New(
 			column.New(m.paneView(paneGuildsTree)).Width(layout.FillPortion(width)),
 			column.New(main).Width(layout.FillPortion(100-width)),
-		)
+		), percent: width, dragging: m.draggingSidebar}
 	}
 
 	if picker == nil {
