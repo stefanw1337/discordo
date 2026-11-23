@@ -509,8 +509,8 @@ func TestModelProcessTextChannels(t *testing.T) {
 	c := NewModel(cfg, state)
 	for _, tt := range []struct{ name, in, want string }{
 		{"channel", "see #general", "see <#10>"},
-		{"emoji in the name, ending a sentence", "Jepp, så det i #📰|sc-news.", "Jepp, så det i <#11>."},
-		{"without its emoji", "i #sc-news!", "i <#11>!"},
+		{"emoji in the name, ending a sentence", "Saw it in #📰|sc-news.", "Saw it in <#11>."},
+		{"without its emoji", "in #sc-news!", "in <#11>!"},
 		{"not a channel", "issue #42", "issue #42"},
 		{"inside a word", "C#general", "C#general"},
 		{"in code", "`#general`", "`#general`"},
