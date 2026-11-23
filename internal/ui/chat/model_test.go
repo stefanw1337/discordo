@@ -252,3 +252,13 @@ func TestModelPasteFocusesComposer(t *testing.T) {
 		t.Fatalf("focus = %v, want the composer, which alt+p pastes into", m.focused)
 	}
 }
+
+func TestModelPasteKeyPastesImage(t *testing.T) {
+	m := newTestModel(t)
+	m.setSelectedChannel(&discord.Channel{ID: 1, Type: discord.DirectMessage})
+	m.setFocus(paneMessagesList)
+	updated, command := m.Update(pasteKeyMsg{})
+	if updated.focused != paneComposer || command == nil {
+		t.Fatalf("focus = %v, command = %v; want the composer to paste the clipboard's image", updated.focused, command)
+	}
+}

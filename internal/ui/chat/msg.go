@@ -66,6 +66,16 @@ func closeState(state *ningen.State, next tview.Msg) tview.Cmd {
 	})
 }
 
+// pasteKeyMsg is ctrl+v pressed in a terminal that kept it for itself.
+type pasteKeyMsg struct{}
+
+func listenPaste(pressed <-chan struct{}) tview.Cmd {
+	return cmd.Task(func() tview.Msg {
+		<-pressed
+		return pasteKeyMsg{}
+	})
+}
+
 func listen(events <-chan gateway.Event) tview.Cmd {
 	return cmd.Task(func() tview.Msg {
 		return <-events

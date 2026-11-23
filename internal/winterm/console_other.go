@@ -16,3 +16,6 @@ func OldConsole() bool {
 func UnderWSL() bool {
 	return false
 }
+
+// WatchPaste watches for nothing outside Windows, where ctrl+v reaches discordo.
+func WatchPaste(chan<- struct{}) {}

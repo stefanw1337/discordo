@@ -36,6 +36,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/settings"
 	"github.com/ayn2op/discordo/internal/ui/images"
 	"github.com/ayn2op/discordo/internal/ui/sixel"
+	"github.com/ayn2op/discordo/internal/winterm"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/backdrop"
@@ -58,6 +59,8 @@ type Model struct {
 	guildsTreeVisible bool
 	// draggingSidebar is set while the right edge of the server list is being dragged.
 	draggingSidebar bool
+	// pasteKeys is sent to when ctrl+v is pressed in a terminal that keeps it for itself.
+	pasteKeys chan struct{}
 	// membersTreeVisible reports whether the members tree is shown right of the messages when the selected channel has members.
 	membersTreeVisible bool
 	// overlay is the picker shown on top, which takes all input.
@@ -139,6 +142,8 @@ func NewModel(cfg *config.Config, token string) Model {
 
 	m.events = make(chan gateway.Event)
 	m.state.AddChanHandler(m.events)
+	m.pasteKeys = make(chan struct{}, 1)
+	winterm.WatchPaste(m.pasteKeys)
 	if cfg.MessageLogger.Enabled {
 		m.sendPriors()
 	}
@@ -284,6 +289,15 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case sidebarDragMsg:
 		m.dragSidebar(msg)
 		return m, nil
+	case pasteKeyMsg:
+		// ctrl+v, which Windows Terminal keeps, pastes the image on the clipboard into the message being written;
+		// the terminal pastes any text itself.
+		var paste tview.Cmd
+		if m.selectedChannel != nil && m.overlay == overlayNone {
+			m.setFocus(paneComposer)
+			paste = m.composer.PasteImage()
+		}
+		return m, cmd.Batch{paste, listenPaste(m.pasteKeys)}
 	case guildstree.VoiceMsg:
 		return m, m.updatePane(paneGuildsTree, msg)
 	case tview.FocusMsg:
@@ -752,7 +766,7 @@ func (m Model) typerName(channel discord.Channel, userID discord.UserID) string 
 var _ tview.Model[Model] = Model{}
 
 func (m Model) Init() tview.Cmd {
-	return cmd.Batch{openState(m.state), listen(m.events), m.guildsTree.Init(), m.messagesList.Init(), cmd.RequestTerminalInfo{}}
+	return cmd.Batch{openState(m.state), listen(m.events), listenPaste(m.pasteKeys), m.guildsTree.Init(), m.messagesList.Init(), cmd.RequestTerminalInfo{}}
 }
 
 // Update returns m changed in response to msg and a command to run, or nil.

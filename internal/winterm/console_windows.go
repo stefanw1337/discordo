@@ -9,7 +9,7 @@ import (
 
 var (
 	getConsoleWindow = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleWindow")
-	getClassName     = windows.NewLazySystemDLL("user32.dll").NewProc("GetClassNameW")
+	getClassName     = user32.NewProc("GetClassNameW")
 )
 
 // Console returns the window class of the console discordo runs in: "ConsoleWindowClass" for Windows' own console

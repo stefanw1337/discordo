@@ -62,6 +62,12 @@ func editLastMessage() tview.Cmd {
 
 type imagePastedMsg []byte
 
+// PasteImage attaches the image on the clipboard, if there is one, as when ctrl+v is pressed in a terminal that keeps
+// it for itself and pastes only text, as Windows Terminal does.
+func (m *Model) PasteImage() tview.Cmd {
+	return pasteImage()
+}
+
 func pasteImage() tview.Cmd {
 	return cmd.Task(func() tview.Msg {
 		data, err := clipboard.Read(context.Background(), clipboard.FmtImage)
