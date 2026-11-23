@@ -262,3 +262,19 @@ func TestModelPasteKeyPastesImage(t *testing.T) {
 		t.Fatalf("focus = %v, command = %v; want the composer to paste the clipboard's image", updated.focused, command)
 	}
 }
+
+func TestModelIncomingCall(t *testing.T) {
+	m := newTestModel(t)
+	if err := m.state.MyselfSet(discord.User{ID: 7}, false); err != nil {
+		t.Fatal(err)
+	}
+	m.updateCall(call{ChannelID: 3, Ringing: []discord.UserID{7}})
+	if m.ringing == nil || !strings.Contains(m.footer(), "is calling") {
+		t.Fatalf("footer = %q, want the call told of", m.footer())
+	}
+	// Rung no longer, as when it is answered elsewhere.
+	m.updateCall(call{ChannelID: 3})
+	if m.ringing != nil {
+		t.Fatal("the call still rings")
+	}
+}

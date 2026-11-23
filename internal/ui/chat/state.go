@@ -159,6 +159,16 @@ func (m *Model) applyEvent(event gateway.Event) tview.Cmd {
 
 	case *gateway.MessageCreateEvent:
 		return m.addMessageOrNotify(event)
+	case *callCreateEvent:
+		return m.updateCall(event.call)
+	case *callUpdateEvent:
+		return m.updateCall(event.call)
+	case *callDeleteEvent:
+		if m.ringing != nil && m.ringing.channelID == event.ChannelID {
+			m.ringing = nil
+		}
+	case *gateway.RelationshipAddEvent:
+		return m.friendRequestArrived(event.Relationship)
 	case *gateway.MessageUpdateEvent:
 		return m.messagesList.UpdateMessage(event.Message)
 	case *gateway.PresenceUpdateEvent:

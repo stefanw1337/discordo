@@ -25,6 +25,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/chat/channelspicker"
 	"github.com/ayn2op/discordo/internal/ui/chat/composer"
 	"github.com/ayn2op/discordo/internal/ui/chat/forumposts"
+	"github.com/ayn2op/discordo/internal/ui/chat/friendrequests"
 	"github.com/ayn2op/discordo/internal/ui/chat/guildstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/memberstree"
 	"github.com/ayn2op/discordo/internal/ui/chat/mentionsinbox"
@@ -61,6 +62,10 @@ type Model struct {
 	draggingSidebar bool
 	// pasteKeys is sent to when ctrl+v is pressed in a terminal that keeps it for itself.
 	pasteKeys chan struct{}
+	// ringing is the call ringing the user, if any.
+	ringing *incomingCall
+	// friendRequests lists the friend requests sent to the user.
+	friendRequests friendrequests.Model
 	// membersTreeVisible reports whether the members tree is shown right of the messages when the selected channel has members.
 	membersTreeVisible bool
 	// overlay is the picker shown on top, which takes all input.
@@ -163,6 +168,7 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.forumPosts = forumposts.NewModel(cfg, m.state)
 	m.profileCard = profilecard.NewModel(cfg, m.state)
 	m.mentionsInbox = mentionsinbox.NewModel(cfg, m.state)
+	m.friendRequests = friendrequests.NewModel(cfg, m.state)
 	m.messageMenu = messagemenu.NewModel(cfg)
 	m.settings = settings.NewModel(cfg)
 
@@ -190,6 +196,7 @@ const (
 	overlayForumPosts
 	overlayProfileCard
 	overlayMentionsInbox
+	overlayFriendRequests
 	overlayMessageMenu
 	overlaySettings
 )
@@ -217,6 +224,8 @@ func (m Model) pickerView() tview.Widget {
 		return m.profileCard.View()
 	case overlayMentionsInbox:
 		return m.mentionsInbox.View()
+	case overlayFriendRequests:
+		return m.friendRequests.View()
 	case overlayMessageMenu:
 		return m.messageMenu.View()
 	case overlaySettings:
@@ -278,7 +287,7 @@ func (m *Model) syncPanes() {
 	m.messagesList.SetFocused(m.paneFocused(paneMessagesList))
 	m.composer.SetFocused(m.paneFocused(paneComposer))
 	m.membersTree.SetFocused(m.paneFocused(paneMembersTree))
-	m.messagesList.SetFooter(m.typingFooter())
+	m.messagesList.SetFooter(m.footer())
 	m.messagesList.SetAvatarWidth(int(squareCols(uint(m.cfg.UI.MessagesList.Avatars.Height), m.imageCell())))
 }
 
@@ -288,6 +297,18 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, cmd.Batch{m.applyEvent(msg), listen(m.events)}
 	case sidebarDragMsg:
 		m.dragSidebar(msg)
+		return m, nil
+	case messageslist.JumpMsg:
+		if msg.MessageID.IsValid() {
+			return m, m.jumpTo(msg.ChannelID, msg.MessageID)
+		}
+		return m, m.navigateToChannel(msg.ChannelID)
+	case friendrequests.CancelMsg:
+		m.overlay = overlayNone
+		return m, nil
+	case friendrequests.AnsweredMsg:
+		// The list shows what is left once the relationship event arrives; it is listed again meanwhile.
+		m.friendRequests.Open()
 		return m, nil
 	case pasteKeyMsg:
 		// ctrl+v, which Windows Terminal keeps, pastes the image on the clipboard into the message being written;
@@ -547,6 +568,18 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.NarrowSidebar.Keybind):
 			m.setSidebarWidth(m.cfg.Sidebar.WidthPercent - sidebarStep)
 			return m, nil
+		case keybind.Matches(msg, keybinds.AnswerCall.Keybind) && m.ringing != nil:
+			return m, m.answerCall()
+		case keybind.Matches(msg, keybinds.DeclineCall.Keybind) && m.ringing != nil:
+			return m, m.declineCall()
+		case keybind.Matches(msg, keybinds.ToggleFriendRequests.Keybind):
+			if m.overlay == overlayFriendRequests {
+				m.overlay = overlayNone
+				return m, nil
+			}
+			m.friendRequests.Open()
+			m.overlay = overlayFriendRequests
+			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleSettings.Keybind):
 			if m.overlay == overlaySettings {
 				m.overlay = overlayNone
@@ -609,6 +642,8 @@ func (m *Model) route(msg tview.Msg) tview.Cmd {
 		m.messageMenu, cmd = m.messageMenu.Update(msg)
 	case overlaySettings:
 		m.settings, cmd = m.settings.Update(msg)
+	case overlayFriendRequests:
+		m.friendRequests, cmd = m.friendRequests.Update(msg)
 	default:
 		cmd = m.updatePane(m.focused, msg)
 	}
@@ -717,6 +752,25 @@ func (m Model) canFocus(target pane) bool {
 }
 
 // typingFooter returns who is typing in the selected channel, or "" if nobody is.
+// footer is what the foot of the messages tells: a call ringing the user, else who is typing, else the friend requests
+// waiting.
+func (m Model) footer() string {
+	if footer := m.callFooter(); footer != "" {
+		return footer
+	}
+	if footer := m.typingFooter(); footer != "" {
+		return footer
+	}
+	if pending := len(friendrequests.Pending(m.state)); pending > 0 {
+		noun := "friend requests"
+		if pending == 1 {
+			noun = "friend request"
+		}
+		return fmt.Sprintf("👋 %d %s — %s", pending, noun, m.cfg.Keybinds.ToggleFriendRequests.Keybind.Help().Key)
+	}
+	return ""
+}
+
 func (m Model) typingFooter() string {
 	channel := m.selectedChannel
 	if channel == nil || len(m.typers) == 0 {

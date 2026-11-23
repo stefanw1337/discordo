@@ -833,6 +833,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, m.viewMedia(msg.url, msg.name)
 	case toggleReactionMsg:
 		return m, m.toggleReaction(msg)
+	case openMentionsMsg:
+		return m, m.openMentions()
 	case menuMsg:
 		if int(msg) < 0 || int(msg) >= len(m.items) {
 			return m, nil

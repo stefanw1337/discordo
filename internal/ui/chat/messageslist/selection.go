@@ -15,6 +15,17 @@ type selected struct {
 	inset int
 }
 
+// Handle passes msg on, and a press on the selected message, not taken by something in it such as an image, opens
+// what its mentions of channels and links into Discord lead to, as clicking a mention does in Discord.
+func (w selected) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
+	handled := w.Widget.Handle(msg, area)
+	mouse, ok := msg.(tview.MouseMsg)
+	if ok && handled == msg && mouse.Action == tview.MouseLeftDown && area.Contains(mouse.Position()) {
+		return openMentionsMsg{}
+	}
+	return handled
+}
+
 func (w selected) Draw(screen tview.Screen, area tview.Rectangle) {
 	styled := &selectionScreen{Screen: screen, style: w.style, minX: area.X + w.inset}
 	styled.FillArea(area.X, area.Y, area.Width, area.Height, ' ', tcell.StyleDefault)

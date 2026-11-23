@@ -39,7 +39,8 @@ func (m Model) openWith(openAttachment func(discord.Attachment) tview.Cmd) tview
 		return nil
 	}
 
-	urls := m.selectedURLs()
+	// The channels it mentions are opened as its links are.
+	urls := append(channelLinks(*selectedMessage), m.selectedURLs()...)
 	switch total := len(urls) + len(selectedMessage.Attachments); {
 	case total == 0:
 		return nil
@@ -158,7 +159,11 @@ func (m Model) saveAttachment(attachment discord.Attachment) tview.Cmd {
 	})
 }
 
+// openURL opens url in the browser, or, for a link into Discord, the channel and message it leads to here.
 func openURL(url string) tview.Cmd {
+	if channelID, messageID, ok := discordLink(url); ok {
+		return jumpTo(channelID, messageID)
+	}
 	return cmd.Task(func() tview.Msg {
 		if err := openURLNow(url); err != nil {
 			return ui.ErrorDialog("open URL", err)

@@ -67,6 +67,7 @@ func (k Keybinds) Global() []keybind.Keybind {
 	return []keybind.Keybind{
 		k.ToggleGuildsTree.Keybind, k.ToggleMembersTree.Keybind, k.ToggleChannelsPicker.Keybind, k.ToggleMentionsInbox.Keybind,
 		k.ToggleSettings.Keybind, k.WidenSidebar.Keybind, k.NarrowSidebar.Keybind,
+		k.AnswerCall.Keybind, k.DeclineCall.Keybind, k.ToggleFriendRequests.Keybind,
 		k.ToggleMute.Keybind, k.ToggleDeafen.Keybind, k.LeaveVoice.Keybind,
 		k.ToggleHelp.Keybind, k.ToggleFullHelp.Keybind, k.Suspend.Keybind,
 		k.FocusGuildsTree.Keybind, k.FocusMembersTree.Keybind, k.FocusMessagesList.Keybind, k.FocusComposer.Keybind,
@@ -264,6 +265,11 @@ type Keybinds struct {
 	ToggleMentionsInbox Keybind `toml:"toggle_mentions_inbox"`
 	// Show the settings page, where settings are changed and saved to the config file.
 	ToggleSettings Keybind `toml:"toggle_settings"`
+	// Answer or decline the call ringing the user, which the footer of the messages tells of.
+	AnswerCall  Keybind `toml:"answer_call"`
+	DeclineCall Keybind `toml:"decline_call"`
+	// Show the friend requests sent to the user, to accept or ignore.
+	ToggleFriendRequests Keybind `toml:"toggle_friend_requests"`
 	// Widen or narrow the server list. Its right edge can also be dragged with the mouse.
 	WidenSidebar  Keybind `toml:"widen_sidebar"`
 	NarrowSidebar Keybind `toml:"narrow_sidebar"`
@@ -347,6 +353,9 @@ func defaultKeybinds() Keybinds {
 		ToggleMentionsInbox:  key("mentions", "alt+i"),
 		ToggleSettings:       key("settings", "ctrl+s", "alt+,"),
 		WidenSidebar:         key("widen list", "alt+="),
+		AnswerCall:           key("answer", "alt+a"),
+		DeclineCall:          key("decline", "alt+x"),
+		ToggleFriendRequests: key("friend requests", "alt+r"),
 		NarrowSidebar:        key("narrow list", "alt+-"),
 		ToggleMute:           key("toggle mute", "alt+v"),
 		ToggleDeafen:         key("toggle deafen", "alt+d"),

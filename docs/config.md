@@ -720,6 +720,24 @@ Show the messages that recently mentioned you, your roles, @everyone or @here, i
 
 Default: `"alt+i"`
 
+## keybinds.answer_call
+
+Answer the call ringing the user, which the foot of the messages tells of.
+
+Default: `"alt+a"`
+
+## keybinds.decline_call
+
+Decline the call ringing the user.
+
+Default: `"alt+x"`
+
+## keybinds.toggle_friend_requests
+
+Show the friend requests sent to the user, to accept or ignore.
+
+Default: `"alt+r"`
+
 ## keybinds.widen_sidebar
 
 Widen the server list. Its right edge can also be dragged with the mouse.
