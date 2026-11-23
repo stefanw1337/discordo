@@ -720,6 +720,14 @@ Show the messages that recently mentioned you, your roles, @everyone or @here, i
 
 Default: `"alt+i"`
 
+## watch_paste_key
+
+On Windows, whether discordo watches for ctrl+v while its terminal has the focus, to paste images in Windows Terminal,
+which keeps the key for itself and pastes only text. Removing ctrl+v from Windows Terminal's actions does the same
+without it. Off, as antivirus programs take a program that watches keys for one that logs them.
+
+Default: `false`
+
 ## keybinds.answer_call
 
 Answer the call ringing the user, which the foot of the messages tells of.

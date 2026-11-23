@@ -12,10 +12,5 @@ func OldConsole() bool {
 	return false
 }
 
-// UnderWSL reports whether a Windows program was started from WSL, which it never is elsewhere.
-func UnderWSL() bool {
-	return false
-}
-
 // WatchPaste watches for nothing outside Windows, where ctrl+v reaches discordo.
 func WatchPaste(chan<- struct{}) {}

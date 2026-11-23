@@ -211,6 +211,11 @@ type (
 		// On Windows, whether discordo opens itself in Windows Terminal when it is started in the old console
 		// window, which shows neither emoji nor sharp images.
 		WindowsTerminal bool `toml:"windows_terminal"`
+		// On Windows, whether discordo watches for ctrl+v while its terminal has the focus, to paste images in
+		// Windows Terminal, which keeps the key for itself and pastes only text. Removing ctrl+v from Windows
+		// Terminal's actions does the same without it. Off, as antivirus programs take a program that watches keys
+		// for one that logs them.
+		WatchPasteKey bool `toml:"watch_paste_key"`
 		// Path is the file the config was read from, or would be, which the settings page writes to.
 		Path string `toml:"-"`
 		// The program opened by the `composer.open_editor` keybind. "default" uses `$EDITOR`.

@@ -1,7 +1,6 @@
 package winterm
 
 import (
-	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -29,38 +28,4 @@ func Console() string {
 // sixel images.
 func OldConsole() bool {
 	return Console() == "ConsoleWindowClass"
-}
-
-// UnderWSL reports whether discordo was started from a WSL shell, as a Windows program run from Linux, whose output
-// WSL passes on without the sequences that draw sixels, which then show as text.
-func UnderWSL() bool {
-	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
-	if err != nil {
-		return false
-	}
-	defer windows.CloseHandle(snapshot) //nolint:errcheck
-
-	type process struct {
-		parent uint32
-		name   string
-	}
-	processes := map[uint32]process{}
-	entry := windows.ProcessEntry32{Size: uint32(unsafe.Sizeof(windows.ProcessEntry32{}))}
-	for err := windows.Process32First(snapshot, &entry); err == nil; err = windows.Process32Next(snapshot, &entry) {
-		processes[entry.ProcessID] = process{entry.ParentProcessID, strings.ToLower(windows.UTF16ToString(entry.ExeFile[:]))}
-	}
-
-	id := uint32(windows.GetCurrentProcessId())
-	for range 8 {
-		p, ok := processes[id]
-		if !ok || p.parent == 0 || p.parent == id {
-			return false
-		}
-		id = p.parent
-		switch processes[id].name {
-		case "wsl.exe", "wslhost.exe", "wslservice.exe":
-			return true
-		}
-	}
-	return false
 }

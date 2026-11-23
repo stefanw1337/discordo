@@ -148,7 +148,9 @@ func NewModel(cfg *config.Config, token string) Model {
 	m.events = make(chan gateway.Event)
 	m.state.AddChanHandler(m.events)
 	m.pasteKeys = make(chan struct{}, 1)
-	winterm.WatchPaste(m.pasteKeys)
+	if cfg.WatchPasteKey {
+		winterm.WatchPaste(m.pasteKeys)
+	}
 	if cfg.MessageLogger.Enabled {
 		m.sendPriors()
 	}

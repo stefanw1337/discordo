@@ -81,6 +81,7 @@ func Settings() []Setting {
 		{"Short file links", []string{"ui", "messages_list", "shorten_file_links"}, func(c *config.Config) *bool { return &c.UI.MessagesList.ShortenFileLinks }},
 		{"Mouse", []string{"mouse"}, func(c *config.Config) *bool { return &c.Mouse }},
 		{"Open in Windows Terminal", []string{"windows_terminal"}, func(c *config.Config) *bool { return &c.WindowsTerminal }},
+		{"Watch ctrl+v for images", []string{"watch_paste_key"}, func(c *config.Config) *bool { return &c.WatchPasteKey }},
 	} {
 		g, s := boolSetting(b.field)
 		settings = append(settings, newSetting(b.label, b.key, onOff, false, g, s))
