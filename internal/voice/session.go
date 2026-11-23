@@ -47,14 +47,54 @@ var audio = sync.OnceValues(func() (*malgo.AllocatedContext, error) {
 	}, malgo.ContextConfig{}, nil)
 })
 
-// startDevice starts a playback or capture device, which calls data with what to fill or with what was captured.
-func startDevice(kind malgo.DeviceType, channels int, data func(output, input []byte)) (*malgo.Device, error) {
+// Devices returns the names of the devices of kind, Capture for microphones or Playback for speakers and headsets.
+func Devices(kind malgo.DeviceType) []string {
+	ctx, err := audio()
+	if err != nil {
+		return nil
+	}
+	infos, err := ctx.Devices(kind)
+	if err != nil {
+		slog.Error("failed to list audio devices", "err", err)
+		return nil
+	}
+	names := make([]string, len(infos))
+	for i, info := range infos {
+		names[i] = info.Name()
+	}
+	return names
+}
+
+// InputDevices and OutputDevices return the names of the microphones, and of the speakers and headsets.
+func InputDevices() []string  { return Devices(malgo.Capture) }
+func OutputDevices() []string { return Devices(malgo.Playback) }
+
+// startDevice starts a playback or capture device, the one named name or the system's default if there is none of
+// that name, which calls data with what to fill or with what was captured.
+func startDevice(kind malgo.DeviceType, name string, channels int, data func(output, input []byte)) (*malgo.Device, error) {
 	ctx, err := audio()
 	if err != nil {
 		return nil, err
 	}
 
 	config := malgo.DefaultDeviceConfig(kind)
+	if name != "" {
+		infos, err := ctx.Devices(kind)
+		if err != nil {
+			return nil, err
+		}
+		for _, info := range infos {
+			if info.Name() == name {
+				id := info.ID.Pointer()
+				if kind == malgo.Capture {
+					config.Capture.DeviceID = id
+				} else {
+					config.Playback.DeviceID = id
+				}
+				break
+			}
+		}
+	}
 	config.SampleRate = sampleRate
 	config.PeriodSizeInMilliseconds = 10
 	config.Playback.Format, config.Playback.Channels = malgo.FormatS16, uint32(channels)
@@ -78,6 +118,9 @@ func startDevice(kind malgo.DeviceType, channels int, data func(output, input []
 // Session is the voice channel that the user is in, if any.
 type Session struct {
 	state *state.State
+	// options are as the settings say; SetOptions changes them while in a voice channel.
+	optionsMu sync.Mutex
+	options   Options
 	// threshold is how loud a sample of the microphone must be for what is said to be sent.
 	threshold int
 	// volume is how loud everyone is played, as a fraction.
@@ -104,10 +147,24 @@ type Session struct {
 	volumes map[discord.UserID]int
 }
 
+// Options are the settings of voice.
+type Options struct {
+	// Sensitivity is how loud the microphone must be for what is said to be sent, in dB below the loudest.
+	Sensitivity float64
+	// Volume is how loud everyone is played, in percent.
+	Volume int
+	// InputDevice and OutputDevice are the names of the microphone and of the speakers or headset, or "" for the
+	// system's default.
+	InputDevice, OutputDevice string
+	// PushToTalk is the key held to be heard, as PushToTalkKeys names it, or "" to be heard whenever loud enough.
+	PushToTalk string
+}
+
 // New returns a Session that sends what the microphone captures louder than sensitivity, in dB, and plays everyone at volume, in percent.
 func New(state *state.State, sensitivity float64, volume int) *Session {
 	session := &Session{
 		state:     state,
+		options:   Options{Sensitivity: sensitivity, Volume: volume},
 		threshold: int(math.Pow(10, sensitivity/20) * math.MaxInt16),
 		volume:    float64(volume) / 100,
 		updates:   make(chan struct{}, 1),
@@ -227,12 +284,47 @@ func (s *Session) setSpeaking(userID discord.UserID, speaking bool) {
 	})
 }
 
-// setDevice starts device, which then calls data, if on, and stops it otherwise.
-func setDevice(device **malgo.Device, on bool, kind malgo.DeviceType, data func(output, input []byte)) error {
+// SetOptions applies options, moving to other devices at once if in a voice channel.
+func (s *Session) SetOptions(options Options) {
+	s.optionsMu.Lock()
+	old := s.options
+	s.options = options
+	s.optionsMu.Unlock()
+
+	s.stateMu.Lock()
+	s.threshold = int(math.Pow(10, options.Sensitivity/20) * math.MaxInt16)
+	s.volume = float64(options.Volume) / 100
+	s.stateMu.Unlock()
+
+	if options.InputDevice == old.InputDevice && options.OutputDevice == old.OutputDevice {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// The devices running are started again, on the devices now set.
+	capturing, playing := s.capture != nil, s.playback != nil
+	if err := s.setDevices(true, true); err != nil {
+		slog.Error("failed to stop voice devices", "err", err)
+	}
+	if capturing || playing {
+		if err := s.setDevices(!capturing, !playing); err != nil {
+			slog.Error("failed to start voice devices", "err", err)
+		}
+	}
+}
+
+func (s *Session) currentOptions() Options {
+	s.optionsMu.Lock()
+	defer s.optionsMu.Unlock()
+	return s.options
+}
+
+// setDevice starts device, the one named name, which then calls data, if on, and stops it otherwise.
+func setDevice(device **malgo.Device, on bool, kind malgo.DeviceType, name string, data func(output, input []byte)) error {
 	switch {
 	case on && *device == nil:
 		var err error
-		*device, err = startDevice(kind, channels, data)
+		*device, err = startDevice(kind, name, channels, data)
 		return err
 	case !on && *device != nil:
 		(*device).Uninit()
@@ -244,9 +336,16 @@ func setDevice(device **malgo.Device, on bool, kind malgo.DeviceType, data func(
 
 // setDevices captures what the user says unless mute, and plays what is said unless deafen.
 func (s *Session) setDevices(mute, deafen bool) error {
+	options := s.currentOptions()
 	err := errors.Join(
-		setDevice(&s.capture, !mute, malgo.Capture, func(_, input []byte) { s.queue(bytes.Clone(input)) }),
-		setDevice(&s.playback, !deafen, malgo.Playback, s.mix),
+		setDevice(&s.capture, !mute, malgo.Capture, options.InputDevice, func(_, input []byte) {
+			// With push to talk, nothing is heard while its key is not held.
+			if options := s.currentOptions(); options.PushToTalk != "" && !keyHeld(options.PushToTalk) {
+				clear(input)
+			}
+			s.queue(bytes.Clone(input))
+		}),
+		setDevice(&s.playback, !deafen, malgo.Playback, options.OutputDevice, s.mix),
 	)
 	if mute {
 		// Silence makes what is being said end.
@@ -501,7 +600,10 @@ func (s *Session) send(session *voice.Session) {
 
 // sendFrame sends one frame of PCM, given how many frames ago the last that was loud enough was, and returns that count with frame in it.
 func (s *Session) sendFrame(session *voice.Session, encoder *opus.Encoder, frame []byte, quiet int) int {
-	samples, loud := decodeSamples(frame, s.threshold)
+	s.stateMu.Lock()
+	threshold := s.threshold
+	s.stateMu.Unlock()
+	samples, loud := decodeSamples(frame, threshold)
 	quiet++
 	if loud {
 		quiet = 0

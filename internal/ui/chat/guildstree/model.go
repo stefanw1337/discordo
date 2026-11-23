@@ -83,6 +83,8 @@ type Model struct {
 	// barNode is the server last opened in the server bar, and barOffset how many of its entries are scrolled past.
 	barNode   *tree.Node
 	barOffset int
+	// barPressed is the entry of the bar pressed and not yet released, or -1.
+	barPressed int
 
 	// treeState keeps which nodes were left open, and the server the bar had open, between runs.
 	treeState *treeState
@@ -93,12 +95,13 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 		root:         tree.NewNode(""),
 		cfg:          cfg,
 		state:        state,
-		voiceSession: voice.New(state.State, cfg.Voice.Sensitivity, cfg.Voice.Volume),
+		voiceSession: newVoiceSession(state, cfg),
 		guildNodes:   make(map[discord.GuildID]*tree.Node),
 		channelNodes: make(map[discord.ChannelID]*tree.Node),
 
 		favorites:     loadFavorites(defaultFavoritesPath()),
 		treeState:     loadTreeState(treeStatePath(cfg)),
+		barPressed:    -1,
 		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
 		images:        make(map[discord.URL]images.Widget),
 		guildIcons:    make(map[discord.GuildID]discord.URL),
@@ -1019,7 +1022,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	m, command := m.update(msg)
 	// What the user opened or closed is kept for the next run.
 	switch msg.(type) {
-	case selectedMsg, tview.KeyMsg, barOpenMsg:
+	case selectedMsg, tview.KeyMsg, barOpenMsg, barReleaseMsg:
 		var bar *tree.Node
 		if m.showsBar() {
 			bar = m.barRoot()
@@ -1088,7 +1091,7 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 			return m.Update(msg.Msg)
 		}
 		return m, nil
-	case barOpenMsg, barScrollMsg:
+	case barOpenMsg, barScrollMsg, barPressMsg, barReleaseMsg:
 		m, command, _ := m.updateBar(msg)
 		return m, command
 	case selectedMsg:

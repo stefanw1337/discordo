@@ -98,6 +98,14 @@ type (
 		Volume int `toml:"volume"`
 		// How much louder or quieter, in percent, a voice member is played per keypress.
 		VolumeStep int `toml:"volume_step"`
+		// The names of the microphone and of the speakers or headset, as the settings page lists them, or "" for
+		// the system's default.
+		InputDevice  string `toml:"input_device"`
+		OutputDevice string `toml:"output_device"`
+		// The key held to be heard, wherever the focus is, which only Windows lets a program in a terminal read:
+		// "mouse4", "mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what
+		// is said whenever it is louder than sensitivity.
+		PushToTalk string `toml:"push_to_talk"`
 	}
 
 	// Stream is how Go Live streams of others are watched.

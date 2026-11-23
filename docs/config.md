@@ -597,6 +597,26 @@ How much louder or quieter, in percent, a voice member is played per keypress.
 
 Default: `10`
 
+## voice.input_device
+
+The name of the microphone, as the settings page (ctrl+s) lists it, or "" for the system's default.
+
+Default: `""`
+
+## voice.output_device
+
+The name of the speakers or headset, as the settings page lists them, or "" for the system's default.
+
+Default: `""`
+
+## voice.push_to_talk
+
+The key held to be heard, wherever the focus is, which only Windows lets a program in a terminal read: "mouse4",
+"mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what is said whenever it
+is louder than the sensitivity.
+
+Default: `""`
+
 # stream
 
 ## stream.player

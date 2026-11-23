@@ -15,6 +15,20 @@ type Session struct{}
 
 func New(*state.State, float64, int) *Session { return &Session{} }
 
+// Options are the settings of voice, which a build without voice has nothing to apply to.
+type Options struct {
+	Sensitivity               float64
+	Volume                    int
+	InputDevice, OutputDevice string
+	PushToTalk                string
+}
+
+func (*Session) SetOptions(Options) {}
+
+// InputDevices and OutputDevices list no devices, without voice.
+func InputDevices() []string  { return nil }
+func OutputDevices() []string { return nil }
+
 func (*Session) Updates() <-chan struct{}     { return nil }
 func (*Session) Status() Status               { return Status{} }
 func (*Session) Speaking(discord.UserID) bool { return false }

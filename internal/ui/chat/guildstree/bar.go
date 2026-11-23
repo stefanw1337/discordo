@@ -59,12 +59,56 @@ func isIconSpan(span text.Span) bool {
 	return isMarker(span.Style) || span.Style.GetBackground() == initialsBackground
 }
 
-// barEntries returns the nodes the bar lists: direct messages, then each server, those in folders too, in order.
+// barEntries returns the nodes the bar lists: direct messages, then each server, those in folders too, in the order
+// they were dragged into, which is kept in discordo alone, and else in Discord's.
 func (m Model) barEntries() []*tree.Node {
-	entries := []*tree.Node{}
-	if m.dmRootNode != nil {
-		entries = append(entries, m.dmRootNode)
+	servers := m.barServers()
+	if m.treeState != nil && len(m.treeState.Order) > 0 {
+		byKey := make(map[string]*tree.Node, len(servers))
+		for _, node := range servers {
+			byKey[nodeKey(node)] = node
+		}
+		ordered := make([]*tree.Node, 0, len(servers))
+		for _, key := range m.treeState.Order {
+			if node, ok := byKey[key]; ok {
+				ordered = append(ordered, node)
+				delete(byKey, key)
+			}
+		}
+		// Servers joined since keep Discord's order, after those placed.
+		for _, node := range servers {
+			if _, ok := byKey[nodeKey(node)]; ok {
+				ordered = append(ordered, node)
+			}
+		}
+		servers = ordered
 	}
+	if m.dmRootNode != nil {
+		return append([]*tree.Node{m.dmRootNode}, servers...)
+	}
+	return servers
+}
+
+// moveInBar moves the entry of the bar at from to where the one at to is, and keeps the order.
+func (m *Model) moveInBar(from, to int) {
+	entries := m.barEntries()
+	// Direct messages stay first.
+	if from <= 0 || to <= 0 || from >= len(entries) || to >= len(entries) || from == to {
+		return
+	}
+	moved := entries[from]
+	entries = append(entries[:from:from], entries[from+1:]...)
+	entries = append(entries[:to], append([]*tree.Node{moved}, entries[to:]...)...)
+	order := make([]string, 0, len(entries)-1)
+	for _, entry := range entries[1:] {
+		order = append(order, nodeKey(entry))
+	}
+	m.treeState.setOrder(order)
+}
+
+// barServers returns the servers in Discord's order, those in folders too.
+func (m Model) barServers() []*tree.Node {
+	entries := []*tree.Node{}
 	for _, node := range m.root.Children() {
 		switch node.Reference().(type) {
 		case discord.GuildID:
@@ -147,10 +191,14 @@ func (m *Model) openAdjacent(previous bool) {
 	}
 }
 
-// barOpenMsg opens the entry of the bar at index; barScrollMsg scrolls the bar by entries.
+// barOpenMsg opens the entry of the bar at index; barScrollMsg scrolls the bar by entries. barPressMsg is a press on
+// an entry, and barReleaseMsg the release that follows: on the same entry it opens it, and on another it moves the
+// pressed one there.
 type (
-	barOpenMsg   int
-	barScrollMsg int
+	barOpenMsg    int
+	barScrollMsg  int
+	barPressMsg   int
+	barReleaseMsg int
 )
 
 // barEntry is a server as the bar draws it.
@@ -238,13 +286,17 @@ func (b bar) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 		return msg
 	}
 	switch mouse.Action {
-	case tview.MouseLeftDown:
+	case tview.MouseLeftDown, tview.MouseLeftUp:
 		_, y := mouse.Position()
 		shown := max((area.Height+1)/(barRows+1), 1)
 		index := max(min(b.offset, len(b.entries)-shown), 0) + (y-area.Y)/(barRows+1)
-		if index < len(b.entries) {
-			return barOpenMsg(index)
+		if index >= len(b.entries) {
+			index = len(b.entries) - 1
 		}
+		if mouse.Action == tview.MouseLeftDown {
+			return barPressMsg(index)
+		}
+		return barReleaseMsg(index)
 	case tview.MouseScrollUp:
 		return barScrollMsg(-1)
 	case tview.MouseScrollDown:
@@ -272,6 +324,21 @@ func (m Model) updateBar(msg tview.Msg) (Model, tview.Cmd, bool) {
 		entries := m.barEntries()
 		if int(msg) < len(entries) {
 			m.openInBar(entries[msg])
+		}
+		return m, nil, true
+	case barPressMsg:
+		m.barPressed = int(msg)
+		return m, nil, true
+	case barReleaseMsg:
+		pressed := m.barPressed
+		m.barPressed = -1
+		entries := m.barEntries()
+		switch {
+		case pressed < 0 || pressed >= len(entries):
+		case pressed == int(msg):
+			m.openInBar(entries[pressed])
+		default:
+			m.moveInBar(pressed, int(msg))
 		}
 		return m, nil, true
 	case barScrollMsg:

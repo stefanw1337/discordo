@@ -17,6 +17,7 @@ import (
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
+	"github.com/ayn2op/tview/tree"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/vt"
 )
@@ -110,6 +111,18 @@ func TestServerBar(t *testing.T) {
 	if m.barRoot() != entries[1] {
 		t.Fatal("[ did not open the server before")
 	}
+	// Dragging the second server onto the first puts it first, and a press and release on one opens it.
+	m, _ = m.Update(barPressMsg(2))
+	m, _ = m.Update(barReleaseMsg(1))
+	if entries := m.barEntries(); entries[1] != guildNode(m, 2) || entries[2] != guildNode(m, 1) {
+		t.Fatal("the dragged server was not moved")
+	}
+	m, _ = m.Update(barPressMsg(1))
+	m, _ = m.Update(barReleaseMsg(1))
+	if m.barRoot() != guildNode(m, 2) {
+		t.Fatal("clicking a server did not open it")
+	}
+
 	if _, ok := m.View().(row.Widget); !ok {
 		t.Fatalf("view = %T, want the bar beside the tree", m.View())
 	}
@@ -125,10 +138,12 @@ func TestServerBar(t *testing.T) {
 	t.Cleanup(screen.Fini)
 	m.View().Draw(screen, tview.Rectangle{Width: 40, Height: 20})
 	cell := func(x, y int) string { str, _, _ := screen.Get(x, y); return str }
-	if got := cell(0, 4) + cell(1, 5) + cell(2, 5) + cell(3, 5) + cell(4, 5); !strings.Contains(got, "O") || cell(0, 4) != "▌" {
+	if got := cell(0, 4) + cell(1, 5) + cell(2, 5) + cell(3, 5) + cell(4, 5); !strings.Contains(got, "T") || cell(0, 4) != "▌" {
 		t.Fatalf("the open server's entry reads %q, want its pill and initial", got)
 	}
 	if cell(3, 1) != "D" && cell(2, 1) != "D" && cell(4, 1) != "D" {
 		t.Fatalf("direct messages are not shown by their initials: %q", cell(1, 1)+cell(2, 1)+cell(3, 1)+cell(4, 1))
 	}
 }
+
+func guildNode(m Model, id discord.GuildID) *tree.Node { return m.guildNodes[id] }

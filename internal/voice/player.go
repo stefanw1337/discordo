@@ -180,7 +180,7 @@ func (p *Player) Play(id discord.AttachmentID, audio []byte) error {
 	})
 
 	channels := p.decoder.Info().Channels
-	device, err := startDevice(malgo.Playback, channels, func(output, _ []byte) {
+	device, err := startDevice(malgo.Playback, "", channels, func(output, _ []byte) {
 		// What is played is left silent rather than wait for Seek, and for Play, which has not set the device yet.
 		if !p.mu.TryLock() {
 			return

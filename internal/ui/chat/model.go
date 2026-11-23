@@ -421,6 +421,10 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		m.overlay = overlayNone
 		return m, nil
 	case settings.ChangedMsg:
+		if len(msg.Key) > 0 && msg.Key[0] == "voice" {
+			m.guildsTree.ApplyVoiceSettings()
+			return m, nil
+		}
 		// Server icons are shown or hidden at once; the other settings take effect on the next start.
 		if msg.Live && slices.Equal(msg.Key, []string{"ui", "guilds_tree", "guild_icons"}) {
 			// Icons are loaded again at the size the new way of showing them takes.

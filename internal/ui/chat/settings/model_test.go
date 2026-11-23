@@ -35,7 +35,12 @@ func TestChangeSetting(t *testing.T) {
 	}
 
 	// A switch is turned off, and marked for the next start.
-	mouse := len(Settings()) - 2
+	mouse := -1
+	for i, setting := range Settings() {
+		if setting.Label == "Mouse" {
+			mouse = i
+		}
+	}
 	m, _ = m.Update(selectedMsg(mouse))
 	if cfg.Mouse || !m.restart {
 		t.Fatalf("mouse = %v, restart = %v; want off, to restart", cfg.Mouse, m.restart)

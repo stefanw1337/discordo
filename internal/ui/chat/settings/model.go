@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/ayn2op/discordo/internal/config"
+	"github.com/ayn2op/discordo/internal/voice"
 	uipicker "github.com/ayn2op/discordo/internal/ui/picker"
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
@@ -69,6 +70,7 @@ func Settings() []Setting {
 		[]Choice{{"10%", 10}, {"15%", 15}, {"20%", 20}, {"25%", 25}, {"30%", 30}}, true, widthGet, widthSet)
 
 	settings := []Setting{guildIcons, sidebarWidth, timeFormat, dateFormat, images}
+	settings = append(settings, voiceSettings()...)
 	for _, b := range []struct {
 		label string
 		key   []string
@@ -84,6 +86,40 @@ func Settings() []Setting {
 		settings = append(settings, newSetting(b.label, b.key, onOff, false, g, s))
 	}
 	return settings
+}
+
+// voiceSettings returns the settings of voice: the devices, which are listed as they are now, how loud others are
+// and how loud the microphone must be, and push to talk.
+func voiceSettings() []Setting {
+	devices := func(names []string) []Choice {
+		choices := []Choice{{"system default", ""}}
+		for _, name := range names {
+			choices = append(choices, Choice{name, name})
+		}
+		return choices
+	}
+	g, s := textSetting(func(c *config.Config) *string { return &c.Voice.InputDevice })
+	input := newSetting("Microphone", []string{"voice", "input_device"}, devices(voice.InputDevices()), true, g, s)
+	g, s = textSetting(func(c *config.Config) *string { return &c.Voice.OutputDevice })
+	output := newSetting("Speakers", []string{"voice", "output_device"}, devices(voice.OutputDevices()), true, g, s)
+
+	volume := newSetting("Voice volume", []string{"voice", "volume"},
+		[]Choice{{"50%", 50}, {"75%", 75}, {"100%", 100}, {"125%", 125}, {"150%", 150}, {"200%", 200}}, true,
+		func(c *config.Config) any { return c.Voice.Volume },
+		func(c *config.Config, value any) { c.Voice.Volume = value.(int) })
+	sensitivity := newSetting("Mic sensitivity", []string{"voice", "sensitivity"},
+		[]Choice{{"very sensitive (-60 dB)", -60.0}, {"sensitive (-50 dB)", -50.0}, {"normal (-40 dB)", -40.0}, {"less (-30 dB)", -30.0}, {"least (-20 dB)", -20.0}}, true,
+		func(c *config.Config) any { return c.Voice.Sensitivity },
+		func(c *config.Config, value any) { c.Voice.Sensitivity = value.(float64) })
+
+	keys := []Choice{{"off (voice activity)", ""}}
+	for _, key := range []string{"mouse4", "mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13", "scrolllock"} {
+		keys = append(keys, Choice{"hold " + key, key})
+	}
+	g, s = textSetting(func(c *config.Config) *string { return &c.Voice.PushToTalk })
+	pushToTalk := newSetting("Push to talk", []string{"voice", "push_to_talk"}, keys, true, g, s)
+
+	return []Setting{input, output, volume, sensitivity, pushToTalk}
 }
 
 // current returns the index of the choice setting has in cfg, or -1 if it has another value.
@@ -113,6 +149,8 @@ func NewModel(cfg *config.Config) Model {
 
 // Open lists the settings as they are.
 func (m *Model) Open() {
+	// The devices are listed again, as headsets come and go.
+	m.settings = Settings()
 	m.restart, m.err = false, nil
 	m.Model.SetItems(m.items())
 }

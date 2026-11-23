@@ -25,6 +25,17 @@ type treeState struct {
 	Expanded map[string]bool `json:"expanded"`
 	// Bar is the key of the server the bar had open.
 	Bar string `json:"bar,omitempty"`
+	// Order is the order the servers were dragged into in the bar, by their keys, kept in discordo alone.
+	Order []string `json:"order,omitempty"`
+}
+
+// setOrder keeps order as the order of the bar, and saves it.
+func (s *treeState) setOrder(order []string) {
+	if s == nil {
+		return
+	}
+	s.Order = order
+	s.save()
 }
 
 // treeStatePath returns where the state is kept: beside the config file read, or nowhere if there was none to read,
@@ -111,7 +122,14 @@ func (s *treeState) record(root *tree.Node, bar *tree.Node) {
 		return
 	}
 	s.Expanded, s.Bar = expanded, barKey
+	s.save()
+}
 
+// save writes the state to its file.
+func (s *treeState) save() {
+	if s.path == "" {
+		return
+	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
