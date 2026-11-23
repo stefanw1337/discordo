@@ -639,6 +639,7 @@ func TestModelJumpTo(t *testing.T) {
 func TestModelStickers(t *testing.T) {
 	ml := newTestModel(t, testConfig(t))
 	ml.cfg.UI.MessagesList.Avatars.Preview = false
+	ml.cfg.UI.MessagesList.ShowStickersAndBoosts = true
 	render := func(message discord.Message) string {
 		var got strings.Builder
 		for _, span := range ml.renderMessage(message, nil, tcell.StyleDefault, true) {
@@ -662,5 +663,19 @@ func TestModelStickers(t *testing.T) {
 				t.Fatalf("got %q, want it to contain %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestModelHidesStickersAndBoosts(t *testing.T) {
+	ml := newTestModel(t, testConfig(t))
+	sticker := discord.Message{ID: 1, Stickers: []discord.StickerItem{{ID: 1, Name: "wave"}}}
+	boost := discord.Message{ID: 2, Type: discord.NitroBoostMessage}
+	text := discord.Message{ID: 3, Content: "hi", Stickers: []discord.StickerItem{{ID: 1, Name: "wave"}}}
+	if ml.shown(sticker) || ml.shown(boost) || !ml.shown(text) {
+		t.Fatal("by default, a message of a sticker alone and a boost are to be hidden, and a message with text shown")
+	}
+	ml.cfg.UI.MessagesList.ShowStickersAndBoosts = true
+	if !ml.shown(sticker) || !ml.shown(boost) {
+		t.Fatal("stickers and boosts are hidden when they are to be shown")
 	}
 }

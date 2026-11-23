@@ -252,7 +252,9 @@ func (m *Model) reset() {
 func (m *Model) setMessages(messages []discord.Message) {
 	m.items = make([]messageItem, 0, len(messages))
 	for _, message := range slices.Backward(messages) {
-		m.items = append(m.items, newItem(message))
+		if m.shown(message) {
+			m.items = append(m.items, newItem(message))
+		}
 	}
 	m.items = m.withDeleted(m.items, 0)
 	m.rebuildItems()
@@ -260,7 +262,7 @@ func (m *Model) setMessages(messages []discord.Message) {
 
 func (m *Model) AddMessage(message discord.Message) tview.Cmd {
 	// It would follow older messages with a gap before it, and is loaded with those newer ones.
-	if m.newerUnloaded {
+	if m.newerUnloaded || !m.shown(message) {
 		return nil
 	}
 
@@ -504,9 +506,11 @@ func (m *Model) prependOlder(msg olderMessagesLoadedMsg) tview.Cmd {
 		return nil
 	}
 
-	older := make([]messageItem, len(msg.older))
-	for index, message := range msg.older {
-		older[index] = newItem(message)
+	older := make([]messageItem, 0, len(msg.older))
+	for _, message := range msg.older {
+		if m.shown(message) {
+			older = append(older, newItem(message))
+		}
 	}
 	// The deleted messages that were among them go back in, up to the oldest message shown.
 	if first := m.messageIndex(-1, 1); first != -1 {
@@ -572,7 +576,9 @@ func (m *Model) showWindow(msg windowLoadedMsg) tview.Cmd {
 
 	m.items = make([]messageItem, 0, len(msg.messages))
 	for _, message := range msg.messages {
-		m.items = append(m.items, newItem(message))
+		if m.shown(message) {
+			m.items = append(m.items, newItem(message))
+		}
 	}
 	m.newerUnloaded = !msg.newest
 	// The deleted messages after the newest loaded go in with the newer messages, once they are loaded.
@@ -627,7 +633,9 @@ func (m *Model) appendNewer(msg newerMessagesLoadedMsg) tview.Cmd {
 	items := make([]messageItem, 0, len(newer)+1)
 	items = append(items, m.items[last])
 	for _, message := range newer {
-		items = append(items, newItem(message))
+		if m.shown(message) {
+			items = append(items, newItem(message))
+		}
 	}
 	// The newest shown leads them so the deleted messages after it go in too.
 	items = m.withDeleted(items, before)[1:]

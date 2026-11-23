@@ -370,6 +370,9 @@ func (m Model) drawSnapshotContent(builder *markdown.Builder, parent discord.Mes
 
 // drawStickers writes a label for each sticker, as in `(sticker: wave)`. inline keeps them on the current line, as in a reply; otherwise each starts a line.
 func (m Model) drawStickers(builder *markdown.Builder, stickers []discord.StickerItem, baseStyle tview.Style, inline bool) {
+	if !m.cfg.UI.MessagesList.ShowStickersAndBoosts {
+		return
+	}
 	style := tview.MergeStyle(baseStyle, m.cfg.Theme.MessagesList.StickerStyle.Style)
 	for _, sticker := range stickers {
 		if inline {
@@ -472,6 +475,20 @@ func drawPinnedMessage(builder *markdown.Builder, message discord.Message, baseS
 // parse returns the parsed markdown of the content of message, with its mentions resolved from the state.
 func (m Model) parse(message discord.Message) ast.Node {
 	return md.ParseWithMessage([]byte(messageContent(message)), *m.state.Cabinet, &message)
+}
+
+// shown reports whether message is shown: all are, but, unless stickers and boosts are to be shown, boosts of the
+// server and messages that are a sticker and nothing more, as what is paid for is left out by default.
+func (m Model) shown(message discord.Message) bool {
+	if m.cfg.UI.MessagesList.ShowStickersAndBoosts {
+		return true
+	}
+	switch message.Type {
+	case discord.NitroBoostMessage, discord.NitroTier1Message, discord.NitroTier2Message, discord.NitroTier3Message:
+		return false
+	}
+	stickerOnly := len(message.Stickers) > 0 && messageContent(message) == "" && len(message.Attachments) == 0 && len(message.Embeds) == 0
+	return !stickerOnly
 }
 
 // boostText returns what a message of a boost of the server says.

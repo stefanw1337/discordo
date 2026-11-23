@@ -407,6 +407,12 @@ Default: `">"`
 
 Default: `"<"`
 
+### ui.messages_list.show_stickers_and_boosts
+
+Whether stickers, and messages of boosts of the server, are shown. Off, as what is paid for is left out.
+
+Default: `false`
+
 ### ui.messages_list.shorten_file_links
 
 Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, and attachments show only the file name. The link still opens the whole URL.
