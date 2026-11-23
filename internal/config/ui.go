@@ -165,8 +165,9 @@ type (
 		// Whether channels and categories you muted are left out of the guilds tree, along with the channels of a muted category.
 		// They can still be opened from the channels picker. The tree is rebuilt with the change when the session reconnects.
 		HideMutedChannels bool `toml:"hide_muted_channels"`
-		// How guilds are shown: "both" their icon and name, "icon" alone or "name" alone. Icons are shown in terminals
-		// that draw images sharply with sixels, such as Windows Terminal, and folders show the icons of their guilds.
+		// How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons
+		// down the left, as in Discord, beside the channels of the server open. Icons are shown in terminals that draw
+		// images sharply with sixels, such as Windows Terminal; a server without an icon shows its initials.
 		GuildIcons string `toml:"guild_icons"`
 	}
 

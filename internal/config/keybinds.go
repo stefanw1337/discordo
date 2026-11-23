@@ -143,6 +143,9 @@ type GuildsTreeKeybinds struct {
 	// Watch the Go Live stream of the highlighted voice member, in the voice channel joined, or stop watching it.
 	// The video plays in the player set in stream.player.
 	WatchStream Keybind `toml:"watch_stream"`
+	// Open the previous or next server of the server bar, which ui.guilds_tree.guild_icons = "bar" shows.
+	PreviousGuild Keybind `toml:"previous_guild"`
+	NextGuild     Keybind `toml:"next_guild"`
 }
 
 type MessagesListKeybinds struct {
@@ -374,6 +377,8 @@ func defaultKeybinds() Keybinds {
 			DecreaseVolume:       key("volume down", "<"),
 			ToggleMemberMute:     key("mute", "0"),
 			WatchStream:          key("watch stream", "w"),
+			PreviousGuild:        key("prev server", "["),
+			NextGuild:            key("next server", "]"),
 		},
 		MembersTree: tree,
 		MessagesList: MessagesListKeybinds{

@@ -28,6 +28,22 @@ func (m Model) showIcons() bool {
 	return m.cfg.UI.GuildsTree.GuildIcons != guildIconsName && sixel.Enabled()
 }
 
+// isMarker reports whether style is a sixel marker's.
+func isMarker(style tview.Style) bool { return sixel.IsMarker(style) }
+
+// showsBar reports whether the server bar is shown, with the channels of one server beside it.
+func (m Model) showsBar() bool {
+	return m.cfg.UI.GuildsTree.GuildIcons == guildIconsBar
+}
+
+// iconRows is how tall the guild icons are loaded: as tall as the bar's, or a row in the tree.
+func (m Model) iconRows() uint {
+	if m.showsBar() {
+		return barRows
+	}
+	return 1
+}
+
 // iconURL returns the icon of the guild, or "" if it has none.
 func iconURL(guild discord.Guild) discord.URL {
 	if guild.Icon == "" {
@@ -55,7 +71,7 @@ func (m Model) LoadImages() tview.Cmd {
 	request := images.RequestedMsg{Squares: map[discord.URL]uint{}}
 	for _, url := range m.guildIcons {
 		if _, ok := m.images[url]; !ok && url != "" {
-			request.Squares[url] = 1
+			request.Squares[url] = m.iconRows()
 		}
 	}
 	slog.Info("loading guild icons", "count", len(request.Squares), "guilds", len(m.guildIcons))
@@ -65,10 +81,13 @@ func (m Model) LoadImages() tview.Cmd {
 	return cmd.Task(func() tview.Msg { return request })
 }
 
-// icon returns the spans that draw the icon of guildID, or nil if it is not shown.
+// icon returns the spans that draw the icon of guildID, or its initials if it has none, or nil if it is not shown.
 func (m Model) icon(guildID discord.GuildID) []text.Span {
 	if !m.showIcons() {
 		return nil
+	}
+	if m.guildIcons[guildID] == "" {
+		return []text.Span{initialsSpan(m.guildNames[guildID], 2)}
 	}
 	image, ok := m.images[m.guildIcons[guildID]]
 	if !ok {
@@ -94,7 +113,7 @@ func nameIndex(spans []text.Span) int {
 		start = 1
 	}
 	for index := start; index < len(spans); index++ {
-		if !sixel.IsMarker(spans[index].Style) {
+		if !isIconSpan(spans[index]) {
 			return index
 		}
 	}
@@ -105,7 +124,7 @@ func nameIndex(spans []text.Span) int {
 // icons: the tree draws the marker in the style of a node's first span, which an icon's would turn into part of the
 // image, so that the image is not drawn.
 func hasLead(spans []text.Span) bool {
-	return len(spans) > 1 && spans[0].Text == "" && sixel.IsMarker(spans[1].Style)
+	return len(spans) > 1 && spans[0].Text == "" && isIconSpan(spans[1])
 }
 
 // withIcon returns the spans of a node: icon, if any, then name, each in style, led by the empty span hasLead tells.

@@ -422,8 +422,9 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case settings.ChangedMsg:
 		// Server icons are shown or hidden at once; the other settings take effect on the next start.
-		if msg.Live {
-			return m, m.guildsTree.RefreshIcons()
+		if msg.Live && slices.Equal(msg.Key, []string{"ui", "guilds_tree", "guild_icons"}) {
+			// Icons are loaded again at the size the new way of showing them takes.
+			return m, cmd.Batch{m.clearImagesOnly(m.guildsTree.IconURLs()), m.guildsTree.RefreshIcons()}
 		}
 		return m, nil
 	case messagesearch.CancelMsg:

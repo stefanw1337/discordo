@@ -13,7 +13,9 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/sixel"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview/cmd"
+	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
+	"github.com/gdamore/tcell/v3"
 )
 
 func TestNameIndex(t *testing.T) {
@@ -61,5 +63,51 @@ func TestGuildIcons(t *testing.T) {
 	}
 	if nameIndex(spans) != 3 {
 		t.Fatalf("nameIndex = %d, want 3", nameIndex(spans))
+	}
+}
+
+func TestInitials(t *testing.T) {
+	for name, want := range map[string]string{
+		"Danielblnc's Neural Rendering Mods": "DNRM",
+		"  ":                                 "?",
+		"[GD] Reign of Terror Mod":           "GROT",
+		"æøå server":                         "ÆS",
+	} {
+		if got := initials(name, 4); got != want {
+			t.Errorf("initials(%q) = %q, want %q", name, got, want)
+		}
+	}
+	if got := initialsSpan("Danielblnc's Neural", 2).Text; got != "DN" {
+		t.Errorf("initials two wide = %q", got)
+	}
+}
+
+func TestServerBar(t *testing.T) {
+	s := ningen.FromState(state.NewWithStore("", defaultstore.New()))
+	cfg, err := config.Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.UI.GuildsTree.GuildIcons = "bar"
+	m := NewModel(cfg, s)
+	guilds := []gateway.GuildCreateEvent{{Guild: discord.Guild{ID: 1, Name: "one"}}, {Guild: discord.Guild{ID: 2, Name: "two"}}}
+	ready := &gateway.ReadyEvent{Guilds: guilds, UserSettings: &gateway.UserSettings{}}
+	s.State.Call(ready)
+	m, _ = m.Update(ready)
+
+	entries := m.barEntries()
+	if len(entries) != 3 || entries[0] != m.dmRootNode {
+		t.Fatalf("bar entries = %d, want direct messages and two servers", len(entries))
+	}
+	m, _ = m.Update(barOpenMsg(2))
+	if m.barRoot() != entries[2] || m.title() != "two" {
+		t.Fatalf("open = %v, title = %q; want the second server", m.barRoot(), m.title())
+	}
+	m, _ = m.Update(tcell.NewEventKey(tcell.KeyRune, "[", tcell.ModNone))
+	if m.barRoot() != entries[1] {
+		t.Fatal("[ did not open the server before")
+	}
+	if _, ok := m.View().(row.Widget); !ok {
+		t.Fatalf("view = %T, want the bar beside the tree", m.View())
 	}
 }

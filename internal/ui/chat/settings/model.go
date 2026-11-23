@@ -52,7 +52,7 @@ func newSetting(label string, key []string, choices []Choice, live bool, get fun
 func Settings() []Setting {
 	g, s := textSetting(func(c *config.Config) *string { return &c.UI.GuildsTree.GuildIcons })
 	guildIcons := newSetting("Server list", []string{"ui", "guilds_tree", "guild_icons"},
-		[]Choice{{"icons and names", "both"}, {"icons only", "icon"}, {"names only", "name"}}, true, g, s)
+		[]Choice{{"icons and names", "both"}, {"icons only", "icon"}, {"server bar, large icons", "bar"}, {"names only", "name"}}, true, g, s)
 	g, s = textSetting(func(c *config.Config) *string { return &c.Timestamps.Format })
 	timeFormat := newSetting("Time", []string{"timestamps", "format"},
 		[]Choice{{"24-hour (23:07)", "15:04"}, {"12-hour (11:07PM)", "3:04PM"}}, false, g, s)
@@ -63,7 +63,12 @@ func Settings() []Setting {
 	images := newSetting("Images", []string{"ui", "messages_list", "image_protocol"},
 		[]Choice{{"automatic", "auto"}, {"sharp (sixel)", "sixel"}, {"kitty", "kitty"}, {"blocks", "halfblocks"}}, false, g, s)
 
-	settings := []Setting{guildIcons, timeFormat, dateFormat, images}
+	widthGet := func(c *config.Config) any { return c.Sidebar.WidthPercent }
+	widthSet := func(c *config.Config, value any) { c.Sidebar.WidthPercent = value.(int) }
+	sidebarWidth := newSetting("Server list width", []string{"sidebar", "width_percent"},
+		[]Choice{{"10%", 10}, {"15%", 15}, {"20%", 20}, {"25%", 25}, {"30%", 30}}, true, widthGet, widthSet)
+
+	settings := []Setting{guildIcons, sidebarWidth, timeFormat, dateFormat, images}
 	for _, b := range []struct {
 		label string
 		key   []string

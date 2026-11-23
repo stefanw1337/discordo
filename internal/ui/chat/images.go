@@ -105,6 +105,17 @@ func (m *Model) clearChannelImages() tview.Cmd {
 	return m.clearImagesExcept(m.guildsTree.IconURLs())
 }
 
+// clearImagesOnly drops the images of drop, and returns a command that frees them in the terminal.
+func (m *Model) clearImagesOnly(drop map[discord.URL]bool) tview.Cmd {
+	keep := make(map[discord.URL]bool, len(m.images))
+	for url := range m.images {
+		if !drop[url] {
+			keep[url] = true
+		}
+	}
+	return m.clearImagesExcept(keep)
+}
+
 // clearImagesExcept drops the images but those of keep, and returns a command that frees them in the terminal.
 func (m *Model) clearImagesExcept(keep map[discord.URL]bool) tview.Cmd {
 	var cmds []tview.Cmd

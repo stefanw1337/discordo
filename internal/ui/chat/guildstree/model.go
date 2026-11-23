@@ -21,6 +21,7 @@ import (
 	"github.com/ayn2op/tview"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/keybind"
+	"github.com/ayn2op/tview/row"
 	"github.com/ayn2op/tview/text"
 	"github.com/ayn2op/tview/tree"
 	"github.com/ayn2op/tview/viewport"
@@ -77,6 +78,10 @@ type Model struct {
 	// guildIcons and guildNames are the icon and name of each guild in the tree.
 	guildIcons map[discord.GuildID]discord.URL
 	guildNames map[discord.GuildID]string
+
+	// barNode is the server last opened in the server bar, and barOffset how many of its entries are scrolled past.
+	barNode   *tree.Node
+	barOffset int
 }
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
@@ -1007,6 +1012,9 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			return m.Update(msg.Msg)
 		}
 		return m, nil
+	case barOpenMsg, barScrollMsg:
+		m, command, _ := m.updateBar(msg)
+		return m, command
 	case selectedMsg:
 		m.setCurrentNode(msg.node)
 		// A favorite opens its channel where it is, under its guild.
@@ -1028,6 +1036,9 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 			return m, nil
 		case keybind.Matches(msg, keybinds.SelectPreviousUnread.Keybind, keybinds.SelectNextUnread.Keybind):
 			m.selectAdjacentUnread(keybind.Matches(msg, keybinds.SelectPreviousUnread.Keybind))
+			return m, nil
+		case m.showsBar() && keybind.Matches(msg, keybinds.PreviousGuild.Keybind, keybinds.NextGuild.Keybind):
+			m.openAdjacent(keybind.Matches(msg, keybinds.PreviousGuild.Keybind))
 			return m, nil
 		case keybind.Matches(msg, keybinds.ToggleFavorite.Keybind):
 			if m.current != nil {
@@ -1075,8 +1086,12 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 func (m Model) View() tview.Widget {
 	onChange := func(current *tree.Node) tview.Msg { return currentMsg{current} }
 	onSelect := func(n *tree.Node) tview.Msg { return selectedMsg{node: n} }
-	return uitree.New(
-		m.root,
+	root := m.root
+	if m.showsBar() {
+		root = m.barRoot()
+	}
+	view := uitree.New(
+		root,
 		m.current,
 		m.scrollState,
 		m.cfg,
@@ -1087,6 +1102,25 @@ func (m Model) View() tview.Widget {
 		onChange,
 		onSelect,
 	).
-		Title(ui.Label("Guilds", m.cfg.Theme.Title, m.focused)).
+		Title(ui.Label(m.title(), m.cfg.Theme.Title, m.focused)).
 		Footer(ui.Label(m.footer(), m.cfg.Theme.Footer, m.focused))
+	if !m.showsBar() || root == nil {
+		return view
+	}
+	return row.New(m.barView(), view)
+}
+
+// title is "Servers", which Discord calls guilds, or with the bar, the name of the server open.
+func (m Model) title() string {
+	if m.showsBar() {
+		if root := m.barRoot(); root != nil {
+			switch ref := root.Reference().(type) {
+			case discord.GuildID:
+				return m.guildNames[ref]
+			case dmNode:
+				return dmNodeName
+			}
+		}
+	}
+	return "Servers"
 }

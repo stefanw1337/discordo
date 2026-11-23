@@ -351,8 +351,10 @@ Default: `false`
 
 ### ui.guilds_tree.guild_icons
 
-How guilds are shown: "both" their icon and name, "icon" alone or "name" alone. Icons are shown in terminals
-that draw images sharply with sixels, such as Windows Terminal, and folders show the icons of their guilds.
+How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons down
+the left, as in Discord, beside the channels of the server open. Icons are shown in terminals that draw images
+sharply with sixels, such as Windows Terminal; folders show the icons of their servers, and a server without an icon
+shows its initials. The settings page (ctrl+s) changes it.
 
 Default: `"both"`
 
@@ -918,6 +920,18 @@ Watch the Go Live stream of the highlighted voice member, in the voice channel j
 The video plays in the player set in stream.player.
 
 Default: `"w"`
+
+### keybinds.guilds_tree.previous_guild
+
+Open the previous server of the server bar, which ui.guilds_tree.guild_icons = "bar" shows.
+
+Default: `"["`
+
+### keybinds.guilds_tree.next_guild
+
+Open the next server of the server bar.
+
+Default: `"]"`
 
 ## keybinds.members_tree
 
