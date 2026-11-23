@@ -18,10 +18,6 @@ type JumpMsg struct {
 	MessageID discord.MessageID
 }
 
-// openMentionsMsg asks to open what the selected message's mentions of channels and links into Discord lead to, as
-// clicking the message again does.
-type openMentionsMsg struct{}
-
 var channelMentionRegex = regexp.MustCompile(`<#(\d+)>`)
 
 // discordLink returns the channel and message, if any, that a link into Discord, such as
@@ -73,24 +69,44 @@ func jumpTo(channelID discord.ChannelID, messageID discord.MessageID) tview.Cmd 
 	return cmd.Task(func() tview.Msg { return JumpMsg{ChannelID: channelID, MessageID: messageID} })
 }
 
-// openMentions opens what the selected message's mentions of channels and links into Discord lead to, asking which
-// if there are several.
-func (m Model) openMentions() tview.Cmd {
-	message, ok := m.selectedMessage()
-	if !ok {
-		return nil
+// linkCells are the cells of the messages drawn last that are part of a link, by their place on the screen, so that a
+// click on a link opens it.
+type linkCells struct {
+	urls map[[2]int]string
+}
+
+// linkClicks draws the messages, noting where their links are, and turns a click on one into opening it.
+type linkClicks struct {
+	tview.Widget
+	links *linkCells
+}
+
+func (w linkClicks) Draw(screen tview.Screen, area tview.Rectangle) {
+	w.Widget.Draw(screen, area)
+	if w.links == nil {
+		return
 	}
-	links := channelLinks(*message)
-	for _, link := range m.selectedURLs() {
-		if _, _, ok := discordLink(link); ok {
-			links = append(links, link)
+	clear(w.links.urls)
+	for y := area.Y; y < area.Y+area.Height; y++ {
+		for x := area.X; x < area.X+area.Width; x++ {
+			if _, style, _ := screen.Get(x, y); style != (tview.Style{}) {
+				if _, url := style.GetUrl(); url != "" {
+					w.links.urls[[2]int{x, y}] = url
+				}
+			}
 		}
 	}
-	switch len(links) {
-	case 0:
-		return nil
-	case 1:
-		return openURL(links[0])
+}
+
+// openLinkMsg asks to open the link clicked.
+type openLinkMsg string
+
+func (w linkClicks) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
+	if mouse, ok := msg.(tview.MouseMsg); ok && w.links != nil && mouse.Action == tview.MouseLeftClick && area.Contains(mouse.Position()) {
+		x, y := mouse.Position()
+		if url, ok := w.links.urls[[2]int{x, y}]; ok {
+			return openLinkMsg(url)
+		}
 	}
-	return m.showAttachmentsList(links, nil, nil)
+	return w.Widget.Handle(msg, area)
 }

@@ -46,6 +46,8 @@ type Model struct {
 	// cursor is the selected item, or -1 for none, and target the item selected last, which stays in view once deselected.
 	cursor, target int
 	scrollState    viewport.ScrollState
+	// links are where the links of the messages drawn last are, which a click opens.
+	links *linkCells
 
 	cfg   *config.Config
 	state *ningen.State
@@ -78,6 +80,7 @@ type Model struct {
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
 	ml := Model{
+		links:         &linkCells{urls: map[[2]int]string{}},
 		cursor:        -1,
 		target:        -1,
 		cfg:           cfg,
@@ -833,8 +836,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, m.viewMedia(msg.url, msg.name)
 	case toggleReactionMsg:
 		return m, m.toggleReaction(msg)
-	case openMentionsMsg:
-		return m, m.openMentions()
+	case openLinkMsg:
+		return m, openURL(string(msg))
 	case menuMsg:
 		if int(msg) < 0 || int(msg) >= len(m.items) {
 			return m, nil
@@ -974,7 +977,7 @@ func (m Model) runAction(matches func(...keybind.Keybind) bool) (Model, tview.Cm
 }
 
 func (m Model) View() tview.Widget {
-	return ui.Box(m.listView(), m.cfg, m.focused).
+	return ui.Box(linkClicks{Widget: m.listView(), links: m.links}, m.cfg, m.focused).
 		Title(ui.Label(m.title(), m.cfg.Theme.Title, m.focused)).
 		Footer(ui.Label(m.footer, m.cfg.Theme.Footer, m.focused))
 }

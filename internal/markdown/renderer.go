@@ -98,7 +98,16 @@ func (w *walker) enter(node ast.Node) ast.WalkStatus {
 
 		w.pushStyle(applyInlineAttr(w.style(), node.Attr, w.linkDepth > 0))
 	case *md.Mention:
-		w.builder.Write(mentionText(node), tview.MergeStyle(w.style(), theme.MentionStyle.Style))
+		style := tview.MergeStyle(w.style(), theme.MentionStyle.Style)
+		// A channel mentioned links to it, which discordo opens when it is clicked.
+		if channel := node.Channel; channel != nil {
+			guild := "@me"
+			if channel.GuildID.IsValid() {
+				guild = channel.GuildID.String()
+			}
+			style = style.Url("https://discord.com/channels/" + guild + "/" + channel.ID.String())
+		}
+		w.builder.Write(mentionText(node), style)
 	case *md.Emoji:
 		w.writeEmoji(node)
 	case *md.Timestamp:
