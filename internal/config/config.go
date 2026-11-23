@@ -265,11 +265,11 @@ type (
 		Composer    ComposerConfig `toml:"composer"`
 
 		// Layout and behavior of the widgets.
-		UI     UIConfig `toml:"ui"`
+		UI       UIConfig `toml:"ui"`
 		Voice    Voice    `toml:"voice"`
 		Activity Activity `toml:"activity"`
 		Stream   Stream   `toml:"stream"`
-		Icons  Icons    `toml:"icons"`
+		Icons    Icons    `toml:"icons"`
 
 		// Global shortcuts. A keybind is a key such as "ctrl+k", or a list of keys.
 		Keybinds Keybinds `toml:"keybinds"`
