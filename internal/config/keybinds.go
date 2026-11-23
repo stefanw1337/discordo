@@ -268,7 +268,8 @@ type Keybinds struct {
 	// Answer or decline the call ringing the user, which the footer of the messages tells of.
 	AnswerCall  Keybind `toml:"answer_call"`
 	DeclineCall Keybind `toml:"decline_call"`
-	// Show the friend requests sent to the user, to accept or ignore.
+	// Show the friend requests sent to the user, to accept or ignore. Not alt+r, which the AMD and NVIDIA overlays
+	// take wherever the focus is.
 	ToggleFriendRequests Keybind `toml:"toggle_friend_requests"`
 	// Widen or narrow the server list. Its right edge can also be dragged with the mouse.
 	WidenSidebar  Keybind `toml:"widen_sidebar"`
@@ -355,7 +356,7 @@ func defaultKeybinds() Keybinds {
 		WidenSidebar:         key("widen list", "alt+="),
 		AnswerCall:           key("answer", "alt+a"),
 		DeclineCall:          key("decline", "alt+x"),
-		ToggleFriendRequests: key("friend requests", "alt+r"),
+		ToggleFriendRequests: key("friend requests", "ctrl+r"),
 		NarrowSidebar:        key("narrow list", "alt+-"),
 		ToggleMute:           key("toggle mute", "alt+v"),
 		ToggleDeafen:         key("toggle deafen", "alt+d"),

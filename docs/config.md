@@ -734,9 +734,9 @@ Default: `"alt+x"`
 
 ## keybinds.toggle_friend_requests
 
-Show the friend requests sent to the user, to accept or ignore.
+Show the friend requests sent to the user, to accept or ignore. Not alt+r, which the AMD and NVIDIA overlays take.
 
-Default: `"alt+r"`
+Default: `"ctrl+r"`
 
 ## keybinds.widen_sidebar
 
