@@ -241,3 +241,14 @@ func TestModelMessageMenu(t *testing.T) {
 		t.Fatal("picking an action did not close the menu")
 	}
 }
+
+func TestModelPasteFocusesComposer(t *testing.T) {
+	m := newTestModel(t)
+	m.setSelectedChannel(&discord.Channel{ID: 1, Type: discord.DirectMessage})
+	m.setFocus(paneMessagesList)
+	updated, _ := m.Update(tcell.NewEventKey(tcell.KeyRune, "p", tcell.ModAlt))
+	m = &updated
+	if m.focused != paneComposer {
+		t.Fatalf("focus = %v, want the composer, which alt+p pastes into", m.focused)
+	}
+}

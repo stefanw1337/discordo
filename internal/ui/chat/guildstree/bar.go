@@ -193,8 +193,11 @@ func (m Model) barView() bar {
 
 func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
 	pill := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	for i := b.offset; i < len(b.entries); i++ {
-		y := area.Y + (i-b.offset)*(barRows+1)
+	// Scrolled no further than the bar stays full, as the wheel can scroll it past its end.
+	shown := max((area.Height+1)/(barRows+1), 1)
+	offset := max(min(b.offset, len(b.entries)-shown), 0)
+	for i := offset; i < len(b.entries); i++ {
+		y := area.Y + (i-offset)*(barRows+1)
 		if y+barRows > area.Y+area.Height {
 			break
 		}
@@ -237,7 +240,8 @@ func (b bar) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 	switch mouse.Action {
 	case tview.MouseLeftDown:
 		_, y := mouse.Position()
-		index := b.offset + (y-area.Y)/(barRows+1)
+		shown := max((area.Height+1)/(barRows+1), 1)
+		index := max(min(b.offset, len(b.entries)-shown), 0) + (y-area.Y)/(barRows+1)
 		if index < len(b.entries) {
 			return barOpenMsg(index)
 		}

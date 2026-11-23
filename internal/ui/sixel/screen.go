@@ -325,3 +325,6 @@ func (s *Screen) write(image shown, e entry) {
 		slog.Debug("failed to write a sixel image", "err", err)
 	}
 }
+
+// SetOutForTest sets where screen writes its sixels, for tests of other packages.
+func SetOutForTest(screen *Screen, out io.Writer) { screen.out = out }

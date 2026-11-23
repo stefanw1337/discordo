@@ -35,6 +35,7 @@ type folderNode struct {
 	// name and style are of the folder's name, which its icons are shown before.
 	name  string
 	style tview.Style
+	id    gateway.GuildFolderID
 }
 
 // defaultFolderName is the name of a folder that was not given one.
@@ -82,6 +83,9 @@ type Model struct {
 	// barNode is the server last opened in the server bar, and barOffset how many of its entries are scrolled past.
 	barNode   *tree.Node
 	barOffset int
+
+	// treeState keeps which nodes were left open, and the server the bar had open, between runs.
+	treeState *treeState
 }
 
 func NewModel(cfg *config.Config, state *ningen.State) Model {
@@ -94,6 +98,7 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 		channelNodes: make(map[discord.ChannelID]*tree.Node),
 
 		favorites:     loadFavorites(defaultFavoritesPath()),
+		treeState:     loadTreeState(treeStatePath(cfg)),
 		favoriteNodes: make(map[discord.ChannelID]*tree.Node),
 		images:        make(map[discord.URL]images.Widget),
 		guildIcons:    make(map[discord.GuildID]discord.URL),
@@ -266,7 +271,8 @@ func (m Model) createFolderNode(folder gateway.GuildFolder, guildsByID map[disco
 	if folder.Color != 0 {
 		style = tcell.StyleDefault.Foreground(tcell.NewHexColor(int32(folder.Color)))
 	}
-	node := tree.NewNode(name).SetReference(folderNode{name, style}).SetExpanded(m.cfg.UI.GuildsTree.AutoExpandFolders)
+	node := tree.NewNode(name).SetReference(folderNode{name, style, folder.ID}).SetExpanded(m.cfg.UI.GuildsTree.AutoExpandFolders)
+	m.treeState.restore(node)
 	m.root.AddChild(node)
 
 	for _, guildID := range folder.GuildIDs {
@@ -278,8 +284,7 @@ func (m Model) createFolderNode(folder gateway.GuildFolder, guildsByID map[disco
 }
 
 func (m Model) guildNodeStyle(guildID discord.GuildID) tview.Style {
-	indication := m.state.GuildIsUnread(guildID, ningen.GuildUnreadOpts{IncludeMutedCategories: true})
-	return ui.UnreadStyle(indication)
+	return ui.UnreadStyle(m.guildUnread(guildID, ningen.GuildUnreadOpts{IncludeMutedCategories: true}))
 }
 
 func (m Model) channelNodeStyle(channel discord.Channel) tview.Style {
@@ -310,6 +315,10 @@ func (m Model) createGuildNode(parent *tree.Node, guild discord.Guild) {
 	m.setGuildSpans(guildNode, guild)
 	parent.AddChild(guildNode)
 	m.guildNodes[guild.ID] = guildNode
+	// A server left open is opened again, its channels loaded.
+	if expanded, _ := m.treeState.restore(guildNode); expanded {
+		m.expandGuild(guildNode, guild.ID)
+	}
 }
 
 // hidden reports whether channel is left out of the tree: it is muted, or is a channel of a category that is, and hide_muted_channels is set.
@@ -347,6 +356,7 @@ func (m Model) createChannelNode(parent *tree.Node, channel discord.Channel) {
 	case discord.GuildCategory:
 		channelNode.SetIndent(indents.Category)
 		channelNode.SetExpandable(true).SetExpanded(false)
+		m.treeState.restore(channelNode)
 	case discord.GuildForum:
 		channelNode.SetIndent(indents.Forum)
 		channelNode.SetExpandable(true).SetExpanded(false)
@@ -710,6 +720,22 @@ func (m Model) createChannelNodes(node *tree.Node, channels []discord.Channel) {
 			m.createChannelNode(parent, channel)
 		}
 	}
+
+	// A category with no channel the user can see is left out, as Discord does: servers often have categories, as
+	// "___hidden___", of channels only some roles see.
+	categories := make(map[discord.ChannelID]bool)
+	for _, channel := range channels {
+		if channel.Type == discord.GuildCategory {
+			categories[channel.ID] = true
+		}
+	}
+	for _, child := range slices.Clone(node.Children()) {
+		channelID, ok := child.Reference().(discord.ChannelID)
+		if ok && categories[channelID] && len(child.Children()) == 0 {
+			node.RemoveChild(child)
+			delete(m.channelNodes, channelID)
+		}
+	}
 }
 
 func isThread(channelType discord.ChannelType) bool {
@@ -764,7 +790,7 @@ func (m Model) isUnread(node *tree.Node) bool {
 	switch ref := node.Reference().(type) {
 	case discord.GuildID:
 		opts := ningen.GuildUnreadOpts{UnreadOpts: unreadOpts}
-		return m.state.GuildIsUnread(ref, opts) != ningen.ChannelRead
+		return m.guildUnread(ref, opts) != ningen.ChannelRead
 	case discord.ChannelID:
 		return m.channelUnread(ref) != ningen.ChannelRead
 	case dmNode:
@@ -883,10 +909,36 @@ func (m Model) expandPathToNode(node *tree.Node) {
 // unreadOpts counts a channel in a muted category unless the channel itself is muted.
 var unreadOpts = ningen.UnreadOpts{IncludeMutedCategories: true}
 
+// guildUnread returns how unread the guild is, leaving out its voice channels, whose chat is never shown as unread.
+func (m Model) guildUnread(guildID discord.GuildID, opts ningen.GuildUnreadOpts) ningen.UnreadIndication {
+	indication := m.state.GuildIsUnread(guildID, opts)
+	if indication == ningen.ChannelRead {
+		return indication
+	}
+	channels, err := m.state.Cabinet.Channels(guildID)
+	if err != nil {
+		return indication
+	}
+	// ningen counts the voice channels too, so the others are counted again without them.
+	recount := ningen.ChannelRead
+	for _, channel := range channels {
+		if channel.Type == discord.GuildCategory || isVoice(channel.Type) {
+			continue
+		}
+		recount = max(recount, m.state.ChannelIsUnread(channel.ID, opts.UnreadOpts))
+	}
+	return recount
+}
+
 // channelUnread reports whether the channel with channelID has unread messages or mentions. Unlike ningen, it also
 // counts a direct message, which has no permissions to view it and which ningen therefore reports as read, and a new
 // post of a forum, which the user has not joined.
+//
+// A voice channel is never unread: its chat is seldom read, and its name would be lit up by every message in it.
 func (m Model) channelUnread(channelID discord.ChannelID) ningen.UnreadIndication {
+	if channel, err := m.state.Cabinet.Channel(channelID); err == nil && isVoice(channel.Type) {
+		return ningen.ChannelRead
+	}
 	indication := m.state.ChannelIsUnread(channelID, unreadOpts)
 	if indication != ningen.ChannelRead {
 		return indication
@@ -964,12 +1016,32 @@ func (m Model) listenVoice() tview.Cmd {
 
 // Update returns m changed in response to msg and a command to run, or nil.
 func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
+	m, command := m.update(msg)
+	// What the user opened or closed is kept for the next run.
+	switch msg.(type) {
+	case selectedMsg, tview.KeyMsg, barOpenMsg:
+		var bar *tree.Node
+		if m.showsBar() {
+			bar = m.barRoot()
+		}
+		m.treeState.record(m.root, bar)
+	}
+	return m, command
+}
+
+func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	switch msg := msg.(type) {
 	case *gateway.ReadyEvent:
 		m.rebuild(msg)
-		// The bar opens on direct messages, as Discord does.
+		// The bar opens on the server it was left on, or on direct messages, as Discord does.
 		if m.showsBar() {
-			m.openInBar(m.dmRootNode)
+			open := m.dmRootNode
+			for _, entry := range m.barEntries() {
+				if m.treeState != nil && m.treeState.Bar != "" && nodeKey(entry) == m.treeState.Bar {
+					open = entry
+				}
+			}
+			m.openInBar(open)
 		}
 		return m, m.LoadImages()
 	case images.ChangedMsg:

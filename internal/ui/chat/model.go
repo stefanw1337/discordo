@@ -489,6 +489,11 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		case keybind.Matches(msg, keybinds.FocusComposer.Keybind):
 			m.setFocus(paneComposer)
 			return m, nil
+		// Pasting, wherever the focus is, pastes into the message being written, as the composer is where anything
+		// pasted can go.
+		case m.focused != paneComposer && m.selectedChannel != nil && keybind.Matches(msg, keybinds.Composer.Paste.Keybind):
+			m.setFocus(paneComposer)
+			return m, m.updatePane(paneComposer, msg)
 
 		case keybind.Matches(msg, keybinds.FocusPrevious.Keybind):
 			m.cycleFocus(-1)
