@@ -2,8 +2,8 @@ name: release
 
 # Pushing a tag such as v2026.11.1 builds ready-to-run files for every platform and publishes them as a GitHub
 # release, so that nobody has to build discordo to use it. A version with a hyphen, such as v2026.11.1-rc.1, is
-# published as a pre-release. Running it from the Actions tab builds the same files to test, which are downloaded
-# from the run's page, and publishes them only if "publish" is ticked.
+# published as a pre-release. Running it from the Actions tab builds discordo for Windows x64 to test, downloaded from
+# the run's page, or for every platform if "all platforms" is ticked, and publishes it only if "publish" is ticked.
 on:
   push:
     tags: ["v*"]
@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      all_platforms:
+        description: "Build for every platform (unticked, a test build is only for Windows x64; a release is always for all)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -27,22 +32,37 @@ env:
   VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
+  # The platforms to build: all of them for a release, and only Windows x64, which is what is tested, for a test
+  # build, unless "all platforms" is ticked.
+  platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        env:
+          ALL: ${{ github.event_name == 'push' || inputs.publish || inputs.all_platforms }}
+        run: |
+          # Linux is built on the oldest Ubuntu runners, so that the binaries run on older distributions too. Apple
+          # silicon is built on the Intel runner, as GitHub's Apple silicon runners have gone unassigned for long
+          # enough that the build was cancelled. Android is for Termux: voice needs the audio libraries of a
+          # desktop, so that one is text, images and streams' video.
+          windows='{"os":"windows-latest","name":"windows_x86_64","mpv":"x86_64"}'
+          all="$windows"',
+            {"os":"ubuntu-22.04","name":"linux_x86_64"},
+            {"os":"ubuntu-22.04-arm","name":"linux_arm64"},
+            {"os":"windows-11-arm","name":"windows_arm64","mpv":"aarch64"},
+            {"os":"macos-26-intel","name":"macos_arm64","goarch":"arm64","cc":"clang -arch arm64"},
+            {"os":"macos-26-intel","name":"macos_x86_64"},
+            {"os":"ubuntu-24.04","name":"android_arm64","android":true}'
+          if [ "$ALL" = true ]; then include="$all"; else include="$windows"; fi
+          echo "matrix=$(echo "{\"include\":[$include]}" | jq -c .)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: platforms
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Built on the oldest Ubuntu runners, so that the binaries run on older distributions too.
-          - { os: ubuntu-22.04, name: linux_x86_64 }
-          - { os: ubuntu-22.04-arm, name: linux_arm64 }
-          - { os: windows-latest, name: windows_x86_64, mpv: x86_64 }
-          - { os: windows-11-arm, name: windows_arm64, mpv: aarch64 }
-          # Built on the Intel runner too, for Apple silicon, as GitHub's Apple silicon runners have gone unassigned
-          # for long enough that the build was cancelled.
-          - { os: macos-26-intel, name: macos_arm64, goarch: arm64, cc: clang -arch arm64 }
-          - { os: macos-26-intel, name: macos_x86_64 }
-          # For Termux. Voice needs the audio libraries of a desktop, so this one is text, images and streams' video.
-          - { os: ubuntu-24.04, name: android_arm64, android: true }
+      matrix: ${{ fromJSON(needs.platforms.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
