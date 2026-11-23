@@ -12,6 +12,9 @@ Discordo is a lightweight, secure, and feature-rich Discord terminal client.
 
 ## Installation
 
+> [!NOTE]
+> The release files of this fork are not code-signed, so a browser or antivirus program may warn about them. See [About antivirus and browser warnings](.github/RELEASE_NOTE.md) for why, and how to check a file.
+
 ### Prebuilt binaries
 
 You can download and install a [prebuilt binary here](https://nightly.link/ayn2op/discordo/workflows/ci/main) for Windows, macOS, or Linux.

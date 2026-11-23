@@ -157,6 +157,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # For the note that goes with the release.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/RELEASE_NOTE.md
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v7
         with:
           merge-multiple: true
@@ -170,5 +175,6 @@ jobs:
           case "$VERSION" in v*) ;; *) echo "The version must start with v, as in v2026.11.1" >&2; exit 1 ;; esac
           prerelease=""
           case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          # The note on warnings about unsigned files goes before the changes GitHub lists.
           gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes $prerelease \
-            discordo_* SHA256SUMS.txt
+            --notes-file .github/RELEASE_NOTE.md discordo_* SHA256SUMS.txt
