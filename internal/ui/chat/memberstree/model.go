@@ -238,8 +238,8 @@ func (m Model) addMember(group *tree.Node, guildID discord.GuildID, member disco
 	if ok {
 		nameStyle = nameStyle.Foreground(tcell.NewHexColor(int32(color)))
 	}
-	spans := []text.Span{{Text: statusMarker}, {Text: " "}, {Text: name, Style: nameStyle}}
-	m.setStatus(spans, m.status(guildID, member.User.ID))
+	spans := []text.Span{{Text: statusMarker}, {Text: " "}, {Text: name, Style: nameStyle}, {}}
+	m.setStatus(spans, m.presence(guildID, member.User.ID))
 	group.AddChild(m.reuse(member.User.ID.String()).SetSpans(spans...).SetReference(memberRef{userID: member.User.ID, index: index}))
 }
 
@@ -249,10 +249,17 @@ const (
 	defaultGroupName = "Members"
 )
 
-// setStatus styles the status dot and name of a member's spans for status.
-func (m Model) setStatus(spans []text.Span, status discord.Status) {
-	spans[0].Style = m.cfg.Theme.MembersTree.StatusStyle(status)
-	spans[2].Style = spans[2].Style.Dim(status == discord.OfflineStatus)
+// setStatus styles the status dot and name of a member's spans for their presence, and puts their activity after
+// their name, dimmed, as Discord shows it under it, unless activities are not to be shown.
+func (m Model) setStatus(spans []text.Span, presence discord.Presence) {
+	spans[0].Style = m.cfg.Theme.MembersTree.StatusStyle(presence.Status)
+	spans[2].Style = spans[2].Style.Dim(presence.Status == discord.OfflineStatus)
+	if len(spans) > 3 {
+		spans[3] = text.Span{}
+		if activity := activityText(presence.Activities); activity != "" && m.cfg.UI.MembersTree.ShowActivities {
+			spans[3] = text.Span{Text: " · " + activity, Style: tcell.StyleDefault.Dim(true).Italic(true)}
+		}
+	}
 }
 
 // reuse takes the node of id out of the index, so that it is reused once, or else returns a new node. Either way the node has no children.
@@ -268,17 +275,22 @@ func (m Model) reuse(id string) *tree.Node {
 func (m Model) refreshStatus(userID discord.UserID) {
 	if node, ok := m.nodes[userID.String()]; ok {
 		spans := node.Spans()
-		m.setStatus(spans, m.status(m.channel.GuildID, userID))
+		m.setStatus(spans, m.presence(m.channel.GuildID, userID))
 		node.SetSpans(spans...)
 	}
 }
 
 func (m Model) status(guildID discord.GuildID, userID discord.UserID) discord.Status {
+	return m.presence(guildID, userID).Status
+}
+
+// presence returns the presence of userID in guildID, or one of being offline if it is not known.
+func (m Model) presence(guildID discord.GuildID, userID discord.UserID) discord.Presence {
 	presence, err := m.state.Cabinet.Presence(guildID, userID)
 	if err != nil {
-		return discord.OfflineStatus
+		return discord.Presence{Status: discord.OfflineStatus}
 	}
-	return presence.Status
+	return *presence
 }
 
 // statusRank orders members as Discord does: online, idle, do not disturb, then offline.

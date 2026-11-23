@@ -117,7 +117,7 @@ type (
 		Footer       TitleUIConfig        `toml:"footer"`
 		Border       BorderUIConfig       `toml:"border"`
 		GuildsTree   GuildsTreeUIConfig   `toml:"guilds_tree"`
-		MembersTree  TreeUIConfig         `toml:"members_tree"`
+		MembersTree  MembersTreeUIConfig  `toml:"members_tree"`
 		ScrollBar    ScrollBarUIConfig    `toml:"scroll_bar"`
 		MessagesList MessagesListUIConfig `toml:"messages_list"`
 		// The list of mention and emoji suggestions above the composer. Its width and height are capped to the available space.
@@ -295,7 +295,7 @@ func defaultUI() UIConfig {
 		Footer:      left,
 		Border:      BorderUIConfig{Enabled: true, Padding: [4]int{0, 0, 1, 1}, NormalSet: round, ActiveSet: round},
 		GuildsTree:  GuildsTreeUIConfig{TreeUIConfig: TreeUIConfig{Graphics: true}, AutoExpandFolders: true, GuildIcons: "both"},
-		MembersTree: TreeUIConfig{Graphics: true},
+		MembersTree: MembersTreeUIConfig{TreeUIConfig: TreeUIConfig{Graphics: true}, ShowActivities: true},
 		ScrollBar: ScrollBarUIConfig{
 			SymbolSet:  SymbolSetWrapper{boxDrawing},
 			Visibility: ScrollBarVisibilityWrapper{viewport.ScrollBarVisibilityAutomatic},
@@ -327,4 +327,12 @@ func (c EmojiUIConfig) Name(name string) string {
 		return ":" + name + ":"
 	}
 	return name
+}
+
+// MembersTreeUIConfig is how the members list is shown.
+type MembersTreeUIConfig struct {
+	TreeUIConfig
+	// Whether to show what each member is doing after their name, as Discord shows it under it: their custom status,
+	// else what they play, listen to, watch or stream.
+	ShowActivities bool `toml:"show_activities"`
 }

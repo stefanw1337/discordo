@@ -349,6 +349,13 @@ They can still be opened from the channels picker. The tree is rebuilt with the 
 
 Default: `false`
 
+### ui.members_tree.show_activities
+
+Whether to show what each member is doing after their name, as Discord shows it under it: their custom status, else
+what they play, listen to, watch or stream.
+
+Default: `true`
+
 ### ui.guilds_tree.guild_icons
 
 How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons down

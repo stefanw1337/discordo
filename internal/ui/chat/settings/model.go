@@ -76,6 +76,7 @@ func Settings() []Setting {
 		key   []string
 		field func(*config.Config) *bool
 	}{
+		{"Show activities", []string{"ui", "members_tree", "show_activities"}, func(c *config.Config) *bool { return &c.UI.MembersTree.ShowActivities }},
 		{"Hide muted channels", []string{"ui", "guilds_tree", "hide_muted_channels"}, func(c *config.Config) *bool { return &c.UI.GuildsTree.HideMutedChannels }},
 		{"Expand folders", []string{"ui", "guilds_tree", "auto_expand_folders"}, func(c *config.Config) *bool { return &c.UI.GuildsTree.AutoExpandFolders }},
 		{"Short file links", []string{"ui", "messages_list", "shorten_file_links"}, func(c *config.Config) *bool { return &c.UI.MessagesList.ShortenFileLinks }},
