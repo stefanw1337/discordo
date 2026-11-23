@@ -106,6 +106,12 @@ type (
 		// "mouse4", "mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what
 		// is said whenever it is louder than sensitivity.
 		PushToTalk string `toml:"push_to_talk"`
+		// Whether the noise around what you say, such as fans, typing and traffic, is removed before it is sent,
+		// with RNNoise. It also keeps noise from being sent as if you spoke.
+		NoiseSuppression bool `toml:"noise_suppression"`
+		// Whether what your speakers play, which the microphone picks up, is removed from what is sent, for others
+		// not to hear themselves back. Not needed with a headset.
+		EchoCancellation bool `toml:"echo_cancellation"`
 	}
 
 	// Activity is what others see you doing, as Discord shows under your name, taken from the programs you have
@@ -313,7 +319,7 @@ func Default() Config {
 		Composer:    ComposerConfig{MaxHeight: 10},
 
 		UI:    defaultUI(),
-		Voice: Voice{Sensitivity: -40, Volume: 100, VolumeStep: 10},
+		Voice: Voice{Sensitivity: -40, Volume: 100, VolumeStep: 10, NoiseSuppression: true},
 		Stream: Stream{
 			Player:     "mpv",
 			PlayerArgs: []string{"--no-terminal", "--force-window=immediate", "--profile=low-latency", "--untimed", "--cache=no", "--hwdec=auto-safe"},

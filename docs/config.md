@@ -630,6 +630,20 @@ is louder than the sensitivity.
 
 Default: `""`
 
+## voice.noise_suppression
+
+Whether the noise around what you say, such as fans, typing and traffic, is removed before it is sent, with RNNoise.
+It also keeps noise from being sent as if you spoke. The settings page (ctrl+s) turns it on and off at once.
+
+Default: `true`
+
+## voice.echo_cancellation
+
+Whether what your speakers play, which the microphone picks up, is removed from what is sent, for others not to
+hear themselves back. Not needed with a headset. The settings page (ctrl+s) turns it on and off at once.
+
+Default: `false`
+
 # activity
 
 What others see you doing, as Discord shows under your name, taken from the programs you have open. Nothing is

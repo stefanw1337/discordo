@@ -16,6 +16,9 @@ func voiceOptions(cfg *config.Config) voice.Options {
 		InputDevice:  cfg.Voice.InputDevice,
 		OutputDevice: cfg.Voice.OutputDevice,
 		PushToTalk:   cfg.Voice.PushToTalk,
+
+		NoiseSuppression: cfg.Voice.NoiseSuppression,
+		EchoCancellation: cfg.Voice.EchoCancellation,
 	}
 }
 

@@ -129,6 +129,8 @@ type Session struct {
 	updates chan struct{}
 	// mic is sent what the microphone captures.
 	mic chan []byte
+	// processor removes echo and noise from what the microphone captures.
+	processor processor
 
 	// mu is held while joining, leaving and muting, which are not done while another is.
 	mu sync.Mutex
@@ -158,6 +160,11 @@ type Options struct {
 	InputDevice, OutputDevice string
 	// PushToTalk is the key held to be heard, as PushToTalkKeys names it, or "" to be heard whenever loud enough.
 	PushToTalk string
+	// NoiseSuppression removes the noise around what is said, such as fans and typing, before it is sent.
+	NoiseSuppression bool
+	// EchoCancellation removes from what the microphone captures what the speakers play, which others would
+	// otherwise hear back.
+	EchoCancellation bool
 }
 
 // New returns a Session that sends what the microphone captures louder than sensitivity, in dB, and plays everyone at volume, in percent.
@@ -500,6 +507,9 @@ func (s *Session) mix(output, _ []byte) {
 			speaker.mix(output, gain)
 		}
 	}
+	if s.currentOptions().EchoCancellation {
+		s.processor.play(output)
+	}
 }
 
 // PlayStream plays an Opus packet with the sequence number seq of the audio of a Go Live stream that userID shares,
@@ -603,6 +613,7 @@ func (s *Session) sendFrame(session *voice.Session, encoder *opus.Encoder, frame
 	s.stateMu.Lock()
 	threshold := s.threshold
 	s.stateMu.Unlock()
+	s.processor.process(frame, s.currentOptions())
 	samples, loud := decodeSamples(frame, threshold)
 	quiet++
 	if loud {

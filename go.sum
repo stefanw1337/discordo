@@ -172,3 +172,6 @@ golang.org/x/tools v0.6.0/go.mod h1:Xwgl3UAJ/d3gWutnCtw505GrjyAbvKui8lOU390QaIU=
 golang.org/x/tools v0.52.0 h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=
 golang.org/x/tools v0.52.0/go.mod h1:ItcP5UNaVGG+Yc4eIYmaFLNJ4soEopkx5Y2d4lcEurs=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+github.com/VoiceBlender/rnnoise-go v0.4.0 h1:8nL0aP11acbvGzjR4GHj3H65+v+Ah/jO2Wsg28KQUt8=
+github.com/VoiceBlender/rnnoise-go v0.4.0/go.mod h1:BUtrncDe1lkAL0Hu5bWCLWxztywbBaRVwm4QKju+oxM=
+golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=

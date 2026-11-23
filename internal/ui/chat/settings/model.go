@@ -131,7 +131,12 @@ func voiceSettings() []Setting {
 	g, s = textSetting(func(c *config.Config) *string { return &c.Voice.PushToTalk })
 	pushToTalk := newSetting("Push to talk", []string{"voice", "push_to_talk"}, keys, true, g, s)
 
-	return []Setting{input, output, volume, sensitivity, pushToTalk}
+	b, set := boolSetting(func(c *config.Config) *bool { return &c.Voice.NoiseSuppression })
+	noise := newSetting("Noise suppression", []string{"voice", "noise_suppression"}, onOff, true, b, set)
+	b, set = boolSetting(func(c *config.Config) *bool { return &c.Voice.EchoCancellation })
+	echo := newSetting("Echo cancellation", []string{"voice", "echo_cancellation"}, onOff, true, b, set)
+
+	return []Setting{input, output, volume, sensitivity, pushToTalk, noise, echo}
 }
 
 // current returns the index of the choice setting has in cfg, or -1 if it has another value.

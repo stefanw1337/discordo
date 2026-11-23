@@ -21,6 +21,8 @@ type Options struct {
 	Volume                    int
 	InputDevice, OutputDevice string
 	PushToTalk                string
+	NoiseSuppression          bool
+	EchoCancellation          bool
 }
 
 func (*Session) SetOptions(Options) {}
