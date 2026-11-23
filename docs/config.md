@@ -1148,7 +1148,7 @@ Default: `["l", "right"]`
 
 Yank (copy) the selected message's content/url/id.
 
-Default: `"y"`
+Default: `["y", "ctrl+c"]`
 
 ### keybinds.messages_list.yank_url
 
@@ -1319,7 +1319,9 @@ Default: `"ctrl+d"`
 
 ## keybinds.quit
 
-Default: `"ctrl+c"`
+Quit discordo. It is not ctrl+c, which copies in most programs.
+
+Default: `"ctrl+q"`
 
 # theme
 

@@ -404,7 +404,7 @@ func defaultKeybinds() Keybinds {
 			SeekBackward:  key("seek back", "h", "left"),
 			SeekForward:   key("seek forward", "l", "right"),
 
-			YankContent: key("copy text", "y"),
+			YankContent: key("copy text", "y", "ctrl+c"),
 			YankURL:     key("copy url", "u"),
 			YankID:      key("copy id", "i"),
 		},
@@ -441,6 +441,6 @@ func defaultKeybinds() Keybinds {
 		Autocomplete: AutocompleteKeybinds{SelectionKeybinds: emacs},
 
 		Logout: key("logout", "ctrl+d"),
-		Quit:   key("quit", "ctrl+c"),
+		Quit:   key("quit", "ctrl+q"),
 	}
 }

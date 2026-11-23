@@ -70,7 +70,7 @@ func TestModelQuit(t *testing.T) {
 	}
 	m := NewModel(cfg)
 
-	m, command := m.Update(tcell.NewEventKey(tcell.KeyCtrlC, "", tcell.ModCtrl))
+	m, command := m.Update(tcell.NewEventKey(tcell.KeyCtrlQ, "", tcell.ModCtrl))
 	t.Run("asks", func(t *testing.T) {
 		if command == nil {
 			t.Fatal("quit did not ask")
