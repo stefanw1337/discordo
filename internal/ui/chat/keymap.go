@@ -51,7 +51,7 @@ func (m Model) activeKeyMap() help.KeyMap {
 func (m Model) baseShortHelp() []keybind.Keybind {
 	cfg := m.cfg.Keybinds
 	short := m.focusHelp()
-	short = append(short, cfg.ToggleGuildsTree.Keybind, cfg.ToggleChannelsPicker.Keybind)
+	short = append(short, cfg.ToggleGuildsTree.Keybind, cfg.ToggleChannelsPicker.Keybind, cfg.ToggleSettings.Keybind)
 	return short
 }
 
@@ -60,7 +60,7 @@ func (m Model) baseFullHelp() [][]keybind.Keybind {
 	return [][]keybind.Keybind{
 		m.focusHelp(),
 		{cfg.FocusPrevious.Keybind, cfg.FocusNext.Keybind},
-		{cfg.ToggleGuildsTree.Keybind, cfg.ToggleMembersTree.Keybind, cfg.ToggleChannelsPicker.Keybind, cfg.ToggleMentionsInbox.Keybind},
+		{cfg.ToggleGuildsTree.Keybind, cfg.ToggleMembersTree.Keybind, cfg.ToggleChannelsPicker.Keybind, cfg.ToggleMentionsInbox.Keybind, cfg.ToggleSettings.Keybind},
 		{cfg.ToggleMute.Keybind, cfg.ToggleDeafen.Keybind, cfg.LeaveVoice.Keybind},
 		{cfg.Logout.Keybind},
 	}

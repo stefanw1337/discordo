@@ -55,7 +55,11 @@ func TestGuildIcons(t *testing.T) {
 	icon := sixel.New(image.NewRGBA(image.Rect(0, 0, 20, 20)), 2, 10, 20)
 	m, _ = m.Update(images.ChangedMsg{url: icon})
 	spans := m.guildNodes[guild.ID].Spans()
-	if len(spans) != 3 || !sixel.IsMarker(spans[0].Style) || spans[2].Text != " guild" {
-		t.Fatalf("spans = %#v, want the icon, then the name", spans)
+	// The first span, whose style the tree draws the expand marker in, must not be part of the icon.
+	if len(spans) != 4 || spans[0].Text != "" || sixel.IsMarker(spans[0].Style) || !sixel.IsMarker(spans[1].Style) || spans[3].Text != " guild" {
+		t.Fatalf("spans = %#v, want an empty lead, the icon, then the name", spans)
+	}
+	if nameIndex(spans) != 3 {
+		t.Fatalf("nameIndex = %d, want 3", nameIndex(spans))
 	}
 }

@@ -608,6 +608,9 @@ func setNodeNameStyle(node *tree.Node, style tview.Style) {
 	if index >= len(spans) {
 		return
 	}
+	if hasLead(spans) {
+		spans[0].Style = style
+	}
 	spans[index].Style = style
 	node.SetSpans(spans...)
 }

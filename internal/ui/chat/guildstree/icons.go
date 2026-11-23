@@ -89,12 +89,34 @@ func (m Model) icon(guildID discord.GuildID) []text.Span {
 
 // nameIndex returns the index of the span of node's name, after its icons.
 func nameIndex(spans []text.Span) int {
-	for index, span := range spans {
-		if !sixel.IsMarker(span.Style) {
+	start := 0
+	if hasLead(spans) {
+		start = 1
+	}
+	for index := start; index < len(spans); index++ {
+		if !sixel.IsMarker(spans[index].Style) {
 			return index
 		}
 	}
 	return len(spans)
+}
+
+// hasLead reports whether spans start with the empty span that gives the node's expand marker its style, put before
+// icons: the tree draws the marker in the style of a node's first span, which an icon's would turn into part of the
+// image, so that the image is not drawn.
+func hasLead(spans []text.Span) bool {
+	return len(spans) > 1 && spans[0].Text == "" && sixel.IsMarker(spans[1].Style)
+}
+
+// withIcon returns the spans of a node: icon, if any, then name, each in style, led by the empty span hasLead tells.
+func withIcon(icon []text.Span, name string, style tview.Style) []text.Span {
+	if len(icon) == 0 {
+		return []text.Span{{Text: name, Style: style}}
+	}
+	spans := make([]text.Span, 0, len(icon)+2)
+	spans = append(spans, text.Span{Style: style})
+	spans = append(spans, icon...)
+	return append(spans, text.Span{Text: name, Style: style})
 }
 
 // setGuildSpans sets the text of the node of a guild: its icon, then its name unless only the icon is shown.
@@ -116,7 +138,7 @@ func (m Model) setGuildSpansStyled(node *tree.Node, guildID discord.GuildID, sty
 			name = " " + name
 		}
 	}
-	node.SetSpans(append(icon, text.Span{Text: name, Style: style})...)
+	node.SetSpans(withIcon(icon, name, style)...)
 }
 
 // setFolderSpans sets the text of the node of a folder: the icons of its first guilds, then its name, which a folder
@@ -144,7 +166,7 @@ func (m Model) setFolderSpans(node *tree.Node, name string, style tview.Style) {
 			name = " " + name
 		}
 	}
-	node.SetSpans(append(icons, text.Span{Text: name, Style: style})...)
+	node.SetSpans(withIcon(icons, name, style)...)
 }
 
 // refreshIcons sets the text of every guild and folder node again, as the icons shown changed.
