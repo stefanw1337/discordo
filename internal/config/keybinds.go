@@ -144,9 +144,10 @@ type GuildsTreeKeybinds struct {
 	// Watch the Go Live stream of the highlighted voice member, in the voice channel joined, or stop watching it.
 	// The video plays in the player set in stream.player.
 	WatchStream Keybind `toml:"watch_stream"`
-	// Open the previous or next server of the server bar, which ui.guilds_tree.guild_icons = "bar" shows.
+	// Open the previous server of the server bar, which ui.guilds_tree.guild_icons = "bar" shows.
 	PreviousGuild Keybind `toml:"previous_guild"`
-	NextGuild     Keybind `toml:"next_guild"`
+	// Open the next server of the server bar.
+	NextGuild Keybind `toml:"next_guild"`
 }
 
 type MessagesListKeybinds struct {
@@ -208,8 +209,8 @@ type ComposerKeybinds struct {
 	// Edit your newest editable message loaded in the current channel, with no age limit.
 	// Only when the composer is empty, with no reply, attachments, or edit in progress.
 	EditLast Keybind `toml:"edit_last"`
-	// Paste from clipboard (supports both text and images). Windows Terminal keeps ctrl+v for itself, which pastes only
-	// text, so alt+p pastes images there.
+	// Paste from clipboard (supports both text and images). Windows Terminal keeps `ctrl+v` for itself, which pastes only
+	// text, so `alt+p` pastes images there.
 	Paste Keybind `toml:"paste"`
 	Send  Keybind `toml:"send"`
 	// Insert a new line at the cursor.
@@ -265,14 +266,16 @@ type Keybinds struct {
 	ToggleMentionsInbox Keybind `toml:"toggle_mentions_inbox"`
 	// Show the settings page, where settings are changed and saved to the config file.
 	ToggleSettings Keybind `toml:"toggle_settings"`
-	// Answer or decline the call ringing the user, which the footer of the messages tells of.
-	AnswerCall  Keybind `toml:"answer_call"`
+	// Answer the call ringing the user, which the foot of the messages tells of.
+	AnswerCall Keybind `toml:"answer_call"`
+	// Decline the call ringing the user.
 	DeclineCall Keybind `toml:"decline_call"`
 	// Show the friend requests sent to the user, to accept or ignore. Not alt+r, which the AMD and NVIDIA overlays
 	// take wherever the focus is.
 	ToggleFriendRequests Keybind `toml:"toggle_friend_requests"`
-	// Widen or narrow the server list. Its right edge can also be dragged with the mouse.
-	WidenSidebar  Keybind `toml:"widen_sidebar"`
+	// Widen the server list. Its right edge can also be dragged with the mouse.
+	WidenSidebar Keybind `toml:"widen_sidebar"`
+	// Narrow the server list.
 	NarrowSidebar Keybind `toml:"narrow_sidebar"`
 	// Start or stop sending what the microphone captures to the voice channel joined.
 	ToggleMute Keybind `toml:"toggle_mute"`

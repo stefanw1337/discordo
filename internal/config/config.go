@@ -98,19 +98,21 @@ type (
 		Volume int `toml:"volume"`
 		// How much louder or quieter, in percent, a voice member is played per keypress.
 		VolumeStep int `toml:"volume_step"`
-		// The names of the microphone and of the speakers or headset, as the settings page lists them, or "" for
-		// the system's default.
-		InputDevice  string `toml:"input_device"`
+		// The name of the microphone, as the settings page (ctrl+s) lists it, or "" for the system's default.
+		InputDevice string `toml:"input_device"`
+		// The name of the speakers or headset, as the settings page lists them, or "" for the system's default.
 		OutputDevice string `toml:"output_device"`
 		// The key held to be heard, wherever the focus is, which only Windows lets a program in a terminal read:
 		// "mouse4", "mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what
-		// is said whenever it is louder than sensitivity.
+		// is said whenever it is louder than the sensitivity.
 		PushToTalk string `toml:"push_to_talk"`
 		// Whether the noise around what you say, such as fans, typing and traffic, is removed before it is sent,
-		// with RNNoise. It also keeps noise from being sent as if you spoke.
+		// with RNNoise. It also keeps noise from being sent as if you spoke. The settings page (ctrl+s) turns it on
+		// and off at once.
 		NoiseSuppression bool `toml:"noise_suppression"`
 		// Whether what your speakers play, which the microphone picks up, is removed from what is sent, for others
-		// not to hear themselves back. Not needed with a headset.
+		// not to hear themselves back. Not needed with a headset. The settings page (ctrl+s) turns it on and off at
+		// once.
 		EchoCancellation bool `toml:"echo_cancellation"`
 	}
 
@@ -121,6 +123,13 @@ type (
 		// has one. Off, so that nothing is looked at unless you want it.
 		Enabled bool `toml:"enabled"`
 		// The programs that are shown, in the order they are preferred. Programs that are not listed are never shown.
+		// Each is written as
+		//
+		//	[[activity.programs]]
+		//	exe = "StarCitizen.exe"  # the name of the program's file, matched without regard to case
+		//	name = "Star Citizen"    # the name others see
+		//	type = "playing"         # "playing", "listening", "watching" or "competing"
+		//	show_title = false       # whether the title of its window, such as Spotify's song, is shown under it
 		Programs []Program `toml:"programs"`
 	}
 
@@ -271,8 +280,12 @@ type (
 		Composer    ComposerConfig `toml:"composer"`
 
 		// Layout and behavior of the widgets.
-		UI       UIConfig `toml:"ui"`
-		Voice    Voice    `toml:"voice"`
+		UI    UIConfig `toml:"ui"`
+		Voice Voice    `toml:"voice"`
+		// What others see you doing, as Discord shows under your name, taken from the programs you have open.
+		// Nothing is looked at until it is enabled. The settings page (ctrl+s) turns it on, and its "Programs shown
+		// as my activity" page adds the programs that are open, names them as others should see them, and orders
+		// them.
 		Activity Activity `toml:"activity"`
 		Stream   Stream   `toml:"stream"`
 		Icons    Icons    `toml:"icons"`

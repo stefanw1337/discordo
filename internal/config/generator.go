@@ -41,6 +41,10 @@ func structFields(value reflect.Value) []field {
 			continue
 		}
 
+		// A field kept out of the file, such as the path it was read from, is not an option.
+		if structField.Tag.Get("toml") == "-" {
+			continue
+		}
 		fields = append(fields, field{structField.Tag.Get("toml"), docs[structType.Name()+"."+structField.Name], value.Field(index)})
 	}
 
@@ -87,7 +91,11 @@ func encodeValue(field field) string {
 	}
 
 	_, value, _ := strings.Cut(line.String(), " = ")
-	return strings.TrimSpace(value)
+	if value = strings.TrimSpace(value); value == "" && field.value.Kind() == reflect.Slice {
+		// The encoder leaves out an empty list.
+		return "[]"
+	}
+	return value
 }
 
 // collectDocs adds the doc comment of each struct field in file to docs.

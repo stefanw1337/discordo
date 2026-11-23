@@ -167,7 +167,8 @@ type (
 		HideMutedChannels bool `toml:"hide_muted_channels"`
 		// How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons
 		// down the left, as in Discord, beside the channels of the server open. Icons are shown in terminals that draw
-		// images sharply with sixels, such as Windows Terminal; a server without an icon shows its initials.
+		// images sharply with sixels, such as Windows Terminal; folders show the icons of their servers, and a server
+		// without an icon shows its initials. The settings page (ctrl+s) changes it.
 		GuildIcons string `toml:"guild_icons"`
 	}
 

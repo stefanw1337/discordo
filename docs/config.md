@@ -13,6 +13,22 @@ Whether to enable the mouse.
 
 Default: `true`
 
+# windows_terminal
+
+On Windows, whether discordo opens itself in Windows Terminal when it is started in the old console
+window, which shows neither emoji nor sharp images.
+
+Default: `true`
+
+# watch_paste_key
+
+On Windows, whether discordo watches for ctrl+v while its terminal has the focus, to paste images in
+Windows Terminal, which keeps the key for itself and pastes only text. Removing ctrl+v from Windows
+Terminal's actions does the same without it. Off, as antivirus programs take a program that watches keys
+for one that logs them.
+
+Default: `false`
+
 # editor
 
 The program opened by the `composer.open_editor` keybind. "default" uses `$EDITOR`.
@@ -349,19 +365,12 @@ They can still be opened from the channels picker. The tree is rebuilt with the 
 
 Default: `false`
 
-### ui.members_tree.show_activities
-
-Whether to show what each member is doing after their name, as Discord shows it under it: their custom status, else
-what they play, listen to, watch or stream.
-
-Default: `true`
-
 ### ui.guilds_tree.guild_icons
 
-How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons down
-the left, as in Discord, beside the channels of the server open. Icons are shown in terminals that draw images
-sharply with sixels, such as Windows Terminal; folders show the icons of their servers, and a server without an icon
-shows its initials. The settings page (ctrl+s) changes it.
+How servers are shown: "both" their icon and name, "icon" alone, "name" alone, or "bar": a bar of large icons
+down the left, as in Discord, beside the channels of the server open. Icons are shown in terminals that draw
+images sharply with sixels, such as Windows Terminal; folders show the icons of their servers, and a server
+without an icon shows its initials. The settings page (ctrl+s) changes it.
 
 Default: `"both"`
 
@@ -370,6 +379,13 @@ Default: `"both"`
 ### ui.members_tree.graphics
 
 Whether to draw lines that give the tree its shape.
+
+Default: `true`
+
+### ui.members_tree.show_activities
+
+Whether to show what each member is doing after their name, as Discord shows it under it: their custom status,
+else what they play, listen to, watch or stream.
 
 Default: `true`
 
@@ -407,17 +423,17 @@ Default: `">"`
 
 Default: `"<"`
 
-### ui.messages_list.show_stickers_and_boosts
-
-Whether stickers, and messages of boosts of the server, are shown. Off, as what is paid for is left out.
-
-Default: `false`
-
 ### ui.messages_list.shorten_file_links
 
 Whether links to files, such as https://cdn.discordapp.com/attachments/.../clip.mp4, and attachments show only the file name. The link still opens the whole URL.
 
 Default: `true`
+
+### ui.messages_list.show_stickers_and_boosts
+
+Whether stickers, and messages of boosts of the server, are shown. Off, as what is paid for is left out.
+
+Default: `false`
 
 ### ui.messages_list.image_protocol
 
@@ -624,51 +640,52 @@ Default: `""`
 
 ## voice.push_to_talk
 
-The key held to be heard, wherever the focus is, which only Windows lets a program in a terminal read: "mouse4",
-"mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what is said whenever it
-is louder than the sensitivity.
+The key held to be heard, wherever the focus is, which only Windows lets a program in a terminal read:
+"mouse4", "mouse5", "capslock", "rightctrl", "rightalt", "backtick", "f13" or "scrolllock". "" sends what
+is said whenever it is louder than the sensitivity.
 
 Default: `""`
 
 ## voice.noise_suppression
 
-Whether the noise around what you say, such as fans, typing and traffic, is removed before it is sent, with RNNoise.
-It also keeps noise from being sent as if you spoke. The settings page (ctrl+s) turns it on and off at once.
+Whether the noise around what you say, such as fans, typing and traffic, is removed before it is sent,
+with RNNoise. It also keeps noise from being sent as if you spoke. The settings page (ctrl+s) turns it on
+and off at once.
 
 Default: `true`
 
 ## voice.echo_cancellation
 
-Whether what your speakers play, which the microphone picks up, is removed from what is sent, for others not to
-hear themselves back. Not needed with a headset. The settings page (ctrl+s) turns it on and off at once.
+Whether what your speakers play, which the microphone picks up, is removed from what is sent, for others
+not to hear themselves back. Not needed with a headset. The settings page (ctrl+s) turns it on and off at
+once.
 
 Default: `false`
 
 # activity
 
-What others see you doing, as Discord shows under your name, taken from the programs you have open. Nothing is
-looked at until it is enabled. The settings page (ctrl+s) turns it on, and its "Programs shown as my activity" page
-adds the programs that are open, names them as others should see them, and orders them.
+What others see you doing, as Discord shows under your name, taken from the programs you have open.
+Nothing is looked at until it is enabled. The settings page (ctrl+s) turns it on, and its "Programs shown
+as my activity" page adds the programs that are open, names them as others should see them, and orders
+them.
 
 ## activity.enabled
 
-Whether discordo looks at the windows that are open, every 15 seconds, to show the first of programs that has one.
-Off, so that nothing is looked at unless you want it.
+Whether discordo looks at the windows that are open, every 15 seconds, to show the first of programs that
+has one. Off, so that nothing is looked at unless you want it.
 
 Default: `false`
 
 ## activity.programs
 
-The programs that are shown, in the order they are preferred. Programs that are not listed are never shown. Each is
-written as
+The programs that are shown, in the order they are preferred. Programs that are not listed are never shown.
+Each is written as
 
-```toml
-[[activity.programs]]
-exe = "StarCitizen.exe"   # the name of the program's file, matched without regard to case
-name = "Star Citizen"     # the name others see
-type = "playing"          # "playing", "listening", "watching" or "competing"
-show_title = false        # whether the title of its window, such as the song Spotify plays, is shown under the name
-```
+	[[activity.programs]]
+	exe = "StarCitizen.exe"  # the name of the program's file, matched without regard to case
+	name = "Star Citizen"    # the name others see
+	type = "playing"         # "playing", "listening", "watching" or "competing"
+	show_title = false       # whether the title of its window, such as Spotify's song, is shown under it
 
 Default: `[]`
 
@@ -775,13 +792,11 @@ Show the messages that recently mentioned you, your roles, @everyone or @here, i
 
 Default: `"alt+i"`
 
-## watch_paste_key
+## keybinds.toggle_settings
 
-On Windows, whether discordo watches for ctrl+v while its terminal has the focus, to paste images in Windows Terminal,
-which keeps the key for itself and pastes only text. Removing ctrl+v from Windows Terminal's actions does the same
-without it. Off, as antivirus programs take a program that watches keys for one that logs them.
+Show the settings page, where settings are changed and saved to the config file.
 
-Default: `false`
+Default: `["ctrl+s", "alt+,"]`
 
 ## keybinds.answer_call
 
@@ -797,7 +812,8 @@ Default: `"alt+x"`
 
 ## keybinds.toggle_friend_requests
 
-Show the friend requests sent to the user, to accept or ignore. Not alt+r, which the AMD and NVIDIA overlays take.
+Show the friend requests sent to the user, to accept or ignore. Not alt+r, which the AMD and NVIDIA overlays
+take wherever the focus is.
 
 Default: `"ctrl+r"`
 
@@ -812,12 +828,6 @@ Default: `"alt+="`
 Narrow the server list.
 
 Default: `"alt+-"`
-
-## keybinds.toggle_settings
-
-Show the settings page, where settings are changed and saved to the config file.
-
-Default: `["ctrl+s", "alt+,"]`
 
 ## keybinds.toggle_mute
 
@@ -1445,8 +1455,6 @@ Requires re-login upon restart.
 Default: `"ctrl+d"`
 
 ## keybinds.quit
-
-Quit discordo. It is not ctrl+c, which copies in most programs.
 
 Default: `"ctrl+q"`
 
