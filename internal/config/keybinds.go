@@ -339,7 +339,7 @@ func defaultKeybinds() Keybinds {
 		ToggleMembersTree:    key("toggle members", "alt+m"),
 		ToggleChannelsPicker: key("channels picker", "ctrl+k"),
 		ToggleMentionsInbox:  key("mentions", "alt+i"),
-		ToggleSettings:       key("settings", "alt+,"),
+		ToggleSettings:       key("settings", "ctrl+s", "alt+,"),
 		ToggleMute:           key("toggle mute", "alt+v"),
 		ToggleDeafen:         key("toggle deafen", "alt+d"),
 		LeaveVoice:           key("leave voice", "alt+l"),

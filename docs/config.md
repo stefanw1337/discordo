@@ -702,7 +702,7 @@ Default: `"alt+i"`
 
 Show the settings page, where settings are changed and saved to the config file.
 
-Default: `"alt+,"`
+Default: `["ctrl+s", "alt+,"]`
 
 ## keybinds.toggle_mute
 

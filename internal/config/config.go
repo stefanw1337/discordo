@@ -383,7 +383,7 @@ func SetValue(path string, key []string, value any) error {
 		return fmt.Errorf("failed to make config folder: %w", err)
 	}
 	var out bytes.Buffer
-	out.WriteString("# Settings for discordo, which its settings page (alt+,) also changes. Everything that can be set is described at\n# https://github.com/stefanw1337/discordo/blob/main/docs/config.md\n\n")
+	out.WriteString("# Settings for discordo, which its settings page (ctrl+s) also changes. Everything that can be set is described at\n# https://github.com/stefanw1337/discordo/blob/main/docs/config.md\n\n")
 	if err := toml.NewEncoder(&out).Encode(values); err != nil {
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
