@@ -68,7 +68,7 @@ jobs:
         shell: bash
         env:
           GOARCH: ${{ matrix.goarch }}
-          CC: ${{ matrix.cc }}
+          CC: ${{ matrix.cc || env.CC }}
           CGO_ENABLED: ${{ matrix.goarch && '1' || '' }}
         run: |
           mkdir -p dist
