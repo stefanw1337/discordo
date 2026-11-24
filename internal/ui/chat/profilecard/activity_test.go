@@ -59,32 +59,33 @@ func TestWriteLinked(t *testing.T) {
 }
 
 func TestComposePlate(t *testing.T) {
-	plate := image.NewNRGBA(image.Rect(0, 0, 600, 116))
-	for y := range 116 {
-		for x := range 600 {
+	// A nameplate fills its right half, as a flag does.
+	plate := image.NewNRGBA(image.Rect(0, 0, 672, 126))
+	for y := range 126 {
+		for x := 336; x < 672; x++ {
 			plate.SetNRGBA(x, y, color.NRGBA{200, 0, 0, 255})
 		}
 	}
-	img := composePlate(plate, 330, 80, 4, []plateLine{{text: "stefanw1337", color: color.NRGBA{255, 255, 0, 255}, bold: true}, {text: "@stefanw1337", color: color.NRGBA{150, 150, 150, 255}}})
+	img := composePlate(plate, 370, 40, 2, []plateLine{{text: "stefanw1337", color: color.NRGBA{255, 255, 0, 255}, bold: true}, {text: "@stefanw1337", color: color.NRGBA{150, 150, 150, 255}}})
 	nrgba := img.(*image.NRGBA)
-	if nrgba.Bounds().Dx() != 330 || nrgba.Bounds().Dy() != 80 {
+	if nrgba.Bounds().Dx() != 370 || nrgba.Bounds().Dy() != 40 {
 		t.Fatalf("size = %v", nrgba.Bounds())
 	}
-	if right := nrgba.NRGBAAt(320, 5); right.A != 255 || right.R != 200 {
-		t.Fatalf("the right end is not the nameplate: %v", right)
+	if right := nrgba.NRGBAAt(365, 5); right.A != 255 || right.R != 200 {
+		t.Fatalf("the nameplate is not kept to the right: %v", right)
 	}
-	if left := nrgba.NRGBAAt(1, 5); left.A != 0 {
-		t.Fatalf("the left end does not fade out: %v", left)
+	if left := nrgba.NRGBAAt(370-213-5, 30); left.A != 0 {
+		t.Fatalf("the nameplate's empty half is drawn: %v", left)
 	}
 	yellow := false
-	for x := range 200 {
-		for y := 20; y < 40; y++ {
+	for x := range 150 {
+		for y := range 20 {
 			if c := nrgba.NRGBAAt(x, y); c.R > 200 && c.G > 200 && c.B < 80 {
 				yellow = true
 			}
 		}
 	}
 	if !yellow {
-		t.Fatal("the name was not drawn on the second row")
+		t.Fatal("the name was not drawn on the first row, beside the nameplate")
 	}
 }

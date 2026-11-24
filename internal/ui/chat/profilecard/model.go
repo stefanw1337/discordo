@@ -177,9 +177,9 @@ func (m Model) loadImages() tview.Cmd {
 	if url := m.plateURL(); url != "" && !m.hasImage(url) {
 		lines := m.plateLines()
 		request.Fitted[url] = images.Fit{
-			Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: avatarRows, Beside: avatarRows, Fill: true,
+			Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: uint(len(lines)), Beside: avatarRows, Fill: true,
 			Compose: func(img image.Image, width, height int) image.Image {
-				return composePlate(img, width, height, avatarRows, lines)
+				return composePlate(img, width, height, len(lines), lines)
 			},
 		}
 	}

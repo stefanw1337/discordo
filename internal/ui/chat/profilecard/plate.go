@@ -40,8 +40,8 @@ func loadFonts() {
 	}
 }
 
-// composePlate draws a nameplate as Discord shows it behind a name: filling width by height pixels from the right,
-// fading out to the left, with lines drawn over it, one to a row of rows, from the second.
+// composePlate draws a nameplate as Discord shows it behind a name: as tall as height pixels and kept to the right
+// of width, with lines drawn over it, one to a row of rows.
 func composePlate(plate image.Image, width, height, rows int, lines []plateLine) image.Image {
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if bounds := plate.Bounds(); bounds.Dx() > 0 && bounds.Dy() > 0 {
@@ -70,9 +70,7 @@ func composePlate(plate image.Image, width, height, rows int, lines []plateLine)
 				if at < 0 {
 					continue
 				}
-				// Fading in from the left third of the width to full at the middle.
-				fade := min(max(float64(at)/float64(width)*2-0.3, 0), 1)
-				c.A = uint8(float64(c.A) * fade)
+				// The nameplate fades out to the left by itself, as Discord draws it.
 				dst.SetNRGBA(at, y, c)
 			}
 		}
