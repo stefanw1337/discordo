@@ -292,7 +292,8 @@ func (m Model) canEditLastMessage() bool {
 // StartEdit puts message in the composer to be edited.
 func (m *Model) StartEdit(message discord.Message) {
 	m.editing = &message
-	m.setText(message.Content, len(message.Content))
+	content := m.readableMentions(message.Content)
+	m.setText(content, len(content))
 }
 
 // StartReply makes the next message a reply to message by name, mentioning its author if mention is set.
@@ -400,6 +401,60 @@ func (m Model) expandMentions(channel *discord.Channel, source []byte) []byte {
 		}
 	}
 	return source
+}
+
+// storedMention matches the mentions a message holds: of a user, <@id> or <@!id>, of a role, <@&id>, and of a
+// channel, <#id>.
+var storedMention = regexp.MustCompile(`<(@!?|@&|#)(\d+)>`)
+
+// readableMentions writes the mentions of content as they are typed, @name and #channel, where sending them again
+// makes the same mentions, so that a message being edited shows names rather than IDs.
+func (m Model) readableMentions(content string) string {
+	channel := m.channel
+	if channel == nil {
+		return content
+	}
+	return storedMention.ReplaceAllStringFunc(content, func(stored string) string {
+		match := storedMention.FindStringSubmatch(stored)
+		id, err := discord.ParseSnowflake(match[2])
+		if err != nil {
+			return stored
+		}
+		var typed string
+		switch match[1] {
+		case "#":
+			found, err := m.state.Cabinet.Channel(discord.ChannelID(id))
+			if err != nil {
+				return stored
+			}
+			typed = "#" + found.Name
+			if again := m.expandMentions(channel, []byte(typed)); string(again) != discord.ChannelID(id).Mention() {
+				return stored
+			}
+			return typed
+		case "@&":
+			role, err := m.state.Cabinet.Role(channel.GuildID, discord.RoleID(id))
+			if err != nil {
+				return stored
+			}
+			typed = mentions.RoleName(*role)
+		default:
+			user, err := m.state.Cabinet.User(discord.UserID(id))
+			if err != nil {
+				if member, merr := m.state.Cabinet.Member(channel.GuildID, discord.UserID(id)); merr == nil {
+					user = &member.User
+				} else {
+					return stored
+				}
+			}
+			typed = user.Username
+		}
+		// A name that would not mention the same one again stays as it is.
+		if mentionRegex.FindString("@"+typed) != "@"+typed || !strings.HasSuffix(m.mention(channel, typed), match[2]+">") {
+			return stored
+		}
+		return "@" + typed
+	})
 }
 
 // mention returns the mention of the user called name who can see channel, else of the role called name that may be mentioned there, or "" if there is neither.

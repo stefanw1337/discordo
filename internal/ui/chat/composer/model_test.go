@@ -531,6 +531,15 @@ func TestModelProcessTextChannels(t *testing.T) {
 	if items := channels.Items(state, &channel, "sc", 5); len(items) != 1 || items[0].Insert() != "#📰|sc-news" {
 		t.Fatalf("items = %v, want #📰|sc-news", items)
 	}
+
+	// A message being edited shows the channels it mentions by name, which send the same mentions again.
+	c.StartEdit(discord.Message{ID: 1, ChannelID: 10, Content: "Ja, jeg så det i <#11>, ikke <#99>"})
+	if want := "Ja, jeg så det i #📰|sc-news, ikke <#99>"; c.text != want {
+		t.Fatalf("editing shows %q, want %q", c.text, want)
+	}
+	if got := c.processText(&channel, []byte(c.text)); got != "Ja, jeg så det i <#11>, ikke <#99>" {
+		t.Fatalf("sent again as %q", got)
+	}
 }
 
 func TestPasteImageOnce(t *testing.T) {
