@@ -2,6 +2,7 @@ package sixel
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -203,40 +204,25 @@ func TestScreen(t *testing.T) {
 	}
 
 	t.Run("scrolled", func(t *testing.T) {
-		at := time.Now().Add(time.Hour)
-		screen.mutex.Lock()
-		screen.now = func() time.Time { return at }
-		screen.mutex.Unlock()
 		draw := func(y int) {
 			screen.Clear()
 			widget.Draw(screen, tview.Rectangle{X: 3, Y: y, Width: 10, Height: 5})
 			screen.Show()
 		}
-		draw(2)
-		out.Reset()
-		// The first step of a scroll is written at once, the steps right after it once they stop.
-		draw(3)
-		if out.Len() == 0 {
-			t.Fatal("the first step of a scroll was not written")
-		}
-		out.Reset()
-		at = at.Add(20 * time.Millisecond)
-		draw(4)
-		if out.Len() != 0 {
-			t.Fatal("an image was written while it kept moving")
-		}
-		screen.writeSettled()
-		if out.Len() != 0 {
-			t.Fatal("an image was written before it settled")
-		}
-		at = at.Add(settle)
-		screen.writeSettled()
-		if !strings.HasPrefix(out.String(), "\x1b[5;4H\x1bP") {
-			t.Fatalf("the image was not written once it settled: %q", out.String())
+		// Every step of a scroll is written at once, the image quantized only once.
+		for y := 2; y <= 4; y++ {
+			out.Reset()
+			draw(y)
+			if want := fmt.Sprintf("\x1b[%d;4H\x1bP", y+1); !strings.HasPrefix(out.String(), want) {
+				t.Fatalf("step to row %d was not written: %q", y, out.String()[:min(20, out.Len())])
+			}
 		}
 		screen.mutex.Lock()
-		screen.now = time.Now
+		quantized := len(screen.quantized)
 		screen.mutex.Unlock()
+		if quantized != 1 {
+			t.Fatalf("quantized %d times, want once", quantized)
+		}
 	})
 
 	t.Run("resized", func(t *testing.T) {
@@ -352,7 +338,7 @@ func TestAnimationFrames(t *testing.T) {
 	t.Cleanup(inner.Fini)
 	// Made without NewScreen, which would also move the frames on in the background.
 	var out bytes.Buffer
-	screen := &Screen{Screen: inner, out: &out, written: map[[2]int]shown{}, cache: map[shown][]byte{}}
+	screen := &Screen{Screen: inner, out: &out, written: map[[2]int]shown{}, cache: map[shown][]byte{}, quantized: map[[2]int]*Indexed{}}
 	now := time.Unix(0, 0)
 	screen.now = func() time.Time { return now }
 

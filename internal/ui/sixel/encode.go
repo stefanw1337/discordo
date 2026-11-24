@@ -30,11 +30,23 @@ func Encode(img image.Image, width, height, top, bottom int) []byte {
 	if width <= 0 || height <= 0 || bottom <= top {
 		return nil
 	}
-	rows := bottom - top
-	pixels := scale(img, width, height, top, bottom)
+	return Quantize(img, width, height).Sixel(top, bottom)
+}
 
+// Indexed is an image scaled, given a palette and dithered to it: the costly part of drawing it, done once, from
+// which any of its rows are written quickly, as they are while it scrolls in and out of view.
+type Indexed struct {
+	width, height int
+	palette       []color.NRGBA
+	// indices are the palette's color of each pixel, or -1 for a transparent one.
+	indices []int16
+}
+
+// Quantize scales img to width by height pixels and gives it a palette of its own colors.
+func Quantize(img image.Image, width, height int) *Indexed {
+	pixels := scale(img, width, height, 0, height)
 	// Transparent pixels are left out of the palette and the image.
-	opaque := make([]bool, width*rows)
+	opaque := make([]bool, width*height)
 	var colors []color.NRGBA
 	for i := range opaque {
 		c := pixels.NRGBAAt(i%width, i/width)
@@ -44,45 +56,62 @@ func Encode(img image.Image, width, height, top, bottom int) []byte {
 		}
 	}
 	palette := medianCut(colors, maxColors)
-
-	indices := make([]int16, width*rows)
+	indices := make([]int16, width*height)
 	dither(pixels, opaque, palette, indices)
+	return &Indexed{width: width, height: height, palette: palette, indices: indices}
+}
 
+// Sixel returns the rows from top to bottom of the image as a sixel image.
+func (x *Indexed) Sixel(top, bottom int) []byte {
+	top, bottom = max(top, 0), min(bottom, x.height)
+	if bottom <= top || x.width <= 0 {
+		return nil
+	}
+	width, rows := x.width, bottom-top
 	var out bytes.Buffer
 	// P2=1: pixels that are not set keep what is behind them.
 	out.WriteString("\x1bP0;1;0q")
 	out.WriteString(`"1;1;` + strconv.Itoa(width) + ";" + strconv.Itoa(rows))
-	for i, c := range palette {
+	for i, c := range x.palette {
 		out.WriteString("#" + strconv.Itoa(i) + ";2;" + strconv.Itoa(percent(c.R)) + ";" + strconv.Itoa(percent(c.G)) + ";" +
 			strconv.Itoa(percent(c.B)))
 	}
 
-	// Each band is six rows of pixels, drawn a color at a time: a sixel's six bits are the rows it sets.
-	band := make([]byte, width)
+	// Each band is six rows of pixels, drawn a color at a time: a sixel's six bits are the rows it sets. The bits
+	// of every color of a band are gathered in one pass over its pixels.
+	bands := make([][]byte, len(x.palette))
+	inBand := make([]bool, len(x.palette))
+	var used []int
 	for y0 := 0; y0 < rows; y0 += 6 {
-		first := true
-		for i := range palette {
-			any := false
-			for x := range width {
-				var bits byte
-				for dy := 0; dy < 6 && y0+dy < rows; dy++ {
-					if indices[(y0+dy)*width+x] == int16(i) {
-						bits |= 1 << dy
-					}
+		used = used[:0]
+		for dy := 0; dy < 6 && y0+dy < rows; dy++ {
+			row := x.indices[(top+y0+dy)*width : (top+y0+dy+1)*width]
+			for px, index := range row {
+				if index < 0 {
+					continue
 				}
-				band[x] = bits
-				any = any || bits != 0
+				band := bands[index]
+				if band == nil {
+					band = make([]byte, width)
+					bands[index] = band
+				}
+				if !inBand[index] {
+					inBand[index] = true
+					used = append(used, int(index))
+				}
+				band[px] |= 1 << dy
 			}
-			if !any {
-				continue
-			}
-			if !first {
+		}
+		slices.Sort(used)
+		for n, i := range used {
+			if n > 0 {
 				// Back to the start of the band, for the next color.
 				out.WriteByte('$')
 			}
-			first = false
 			out.WriteString("#" + strconv.Itoa(i))
-			writeRuns(&out, band)
+			writeRuns(&out, bands[i])
+			clear(bands[i])
+			inBand[i] = false
 		}
 		out.WriteByte('-')
 	}
@@ -90,8 +119,6 @@ func Encode(img image.Image, width, height, top, bottom int) []byte {
 	return out.Bytes()
 }
 
-// scale returns rows top to bottom of img scaled to width by height: smoothly when it is made smaller, which
-// sampling the nearest pixel would make grainy, and to the nearest pixel when it is made larger, which keeps edges.
 func scale(img image.Image, width, height, top, bottom int) *image.NRGBA {
 	bounds := img.Bounds()
 	dst := image.NewNRGBA(image.Rect(0, 0, width, bottom-top))

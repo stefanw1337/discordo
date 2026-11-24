@@ -140,20 +140,17 @@ type Screen struct {
 	written map[[2]int]shown
 	// cache keeps images encoded, as they are written again whenever the screen is redrawn under them.
 	cache map[shown][]byte
+	// quantized keeps images, and frames of animations, scaled and given their palettes, by ID and frame.
+	quantized map[[2]int]*Indexed
 	// now returns the time, which tests set.
 	now func() time.Time
 	// size is the size of the screen when it was last shown.
 	size [2]int
-	// moved is when images last moved, as they do while scrolling, and pending whether images that moved since
-	// were left to be written once they stop.
-	moved   time.Time
-	pending bool
-	// redrawn is set once the whole screen was drawn anew, whose images are all written at once.
-	redrawn bool
+	// moved is when images last moved, as they do while scrolling.
+	moved time.Time
 }
 
-// settle is how long images must stay where they are before those that moved are written again: writing large
-// images at every step of a scroll makes it slow.
+// settle is how long animations wait once images stop moving, for their frames not to slow a scroll.
 const settle = 120 * time.Millisecond
 
 // frameInterval is how often animations are moved to their next frame.
@@ -161,7 +158,7 @@ const frameInterval = 40 * time.Millisecond
 
 // NewScreen returns screen, writing the images marked on it with sixels once SetEnabled turns them on.
 func NewScreen(screen tcell.Screen) *Screen {
-	s := &Screen{Screen: screen, written: make(map[[2]int]shown), cache: make(map[shown][]byte), now: time.Now}
+	s := &Screen{Screen: screen, written: make(map[[2]int]shown), cache: make(map[shown][]byte), quantized: make(map[[2]int]*Indexed), now: time.Now}
 	go s.animate()
 	return s
 }
@@ -173,7 +170,6 @@ func (s *Screen) animate() {
 	for range ticker.C {
 		if Enabled() {
 			s.nextFrames()
-			s.writeSettled()
 		}
 	}
 }
@@ -203,16 +199,6 @@ func (s *Screen) nextFrames() {
 	}
 }
 
-// writeSettled writes the images left out while they moved, once they stopped.
-func (s *Screen) writeSettled() {
-	s.mutex.Lock()
-	due := s.pending && s.now().Sub(s.moved) >= settle
-	s.mutex.Unlock()
-	if due {
-		s.writeImages()
-	}
-}
-
 // Show shows the frame drawn, then writes its images over it. Animations, written between, are kept out meanwhile.
 func (s *Screen) Show() {
 	s.mutex.Lock()
@@ -221,7 +207,6 @@ func (s *Screen) Show() {
 	if width, height := s.Size(); [2]int{width, height} != s.size {
 		s.size = [2]int{width, height}
 		clear(s.written)
-		s.redrawn = true
 	}
 	s.Screen.Show()
 	s.mutex.Unlock()
@@ -234,7 +219,6 @@ func (s *Screen) Show() {
 func (s *Screen) Sync() {
 	s.mutex.Lock()
 	clear(s.written)
-	s.redrawn = true
 	s.Screen.Sync()
 	s.mutex.Unlock()
 	if Enabled() {
@@ -275,11 +259,7 @@ func (s *Screen) writeImages() {
 	}
 
 	now := s.now()
-	// Images that moved right after others did, as in a scroll, are left out until they stop moving.
-	settling := now.Sub(s.moved) < settle && !s.redrawn
-	s.redrawn = false
 	moved := false
-	s.pending = false
 
 	written := make(map[[2]int]shown, len(marks))
 	for key, f := range marks {
@@ -322,11 +302,6 @@ func (s *Screen) writeImages() {
 		}
 		if before, ok := s.written[where]; !ok || before.id != image.id {
 			moved = true
-			if settling {
-				delete(written, where)
-				s.pending = true
-				continue
-			}
 		}
 		s.write(image, e)
 	}
@@ -356,13 +331,22 @@ func (s *Screen) write(image shown, e entry) {
 		if len(s.cache) > 1024 {
 			clear(s.cache)
 		}
-		height := e.rows * e.cellHeight
-		top, bottom := image.top*e.cellHeight, image.bottom*e.cellHeight
-		img := e.img
-		if animation, ok := img.(*Animation); ok {
-			img = animation.Frames[image.frame]
+		// The image is quantized once, whichever of its rows are shown, as they change while it scrolls in and
+		// out of view.
+		whole := [2]int{image.id, image.frame}
+		indexed, ok := s.quantized[whole]
+		if !ok {
+			if len(s.quantized) > 512 {
+				clear(s.quantized)
+			}
+			img := e.img
+			if animation, ok := img.(*Animation); ok {
+				img = animation.Frames[image.frame]
+			}
+			indexed = Quantize(img, e.cols*e.cellWidth, e.rows*e.cellHeight)
+			s.quantized[whole] = indexed
 		}
-		data = Encode(img, e.cols*e.cellWidth, height, top, bottom)
+		data = indexed.Sixel(image.top*e.cellHeight, image.bottom*e.cellHeight)
 		s.cache[key] = data
 	}
 
