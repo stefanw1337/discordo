@@ -42,7 +42,6 @@ import (
 	"github.com/ayn2op/discordo/internal/winterm"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
-	"github.com/ayn2op/tview/backdrop"
 	"github.com/ayn2op/tview/center"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/column"
@@ -941,7 +940,7 @@ func (m Model) View() tview.Widget {
 	return stack.New(
 		// The panes behind the picker take no input.
 		inert.New(main),
-		backdrop.New().Style(m.cfg.Theme.Dialog.BackgroundStyle.Style),
+		ui.NewBackdrop(m.cfg.Theme.Dialog.BackgroundStyle.Style),
 		center.New(column.New(picker).Width(width).Height(height)),
 	)
 }

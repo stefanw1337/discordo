@@ -315,7 +315,7 @@ func (m Model) View() tview.Widget {
 		footer = "Loading..."
 	}
 
-	header, body := m.lines()
+	header, status, body := m.lines()
 	var names tview.Widget = text.Rich(header...)
 	if avatar, ok := m.images[m.avatarURL()]; ok {
 		names = row.New(avatar, names).Spacing(1).Height(layout.Shrink)
@@ -328,6 +328,9 @@ func (m Model) View() tview.Widget {
 		content = content.Push(colorBar{rows: accentRows, style: tcell.StyleDefault.Background(tcell.NewHexColor(int32(accent)))})
 	}
 	content = content.Push(names)
+	if len(status) != 0 {
+		content = content.Push(text.Rich(status...))
+	}
 	// The nameplate Discord shows behind the name is shown under it, as text cannot be drawn over an image.
 	if nameplate, ok := m.images[m.nameplateURL()]; ok && m.nameplateURL() != "" {
 		content = content.Push(nameplate)
@@ -382,7 +385,7 @@ func (m Model) themeColors() []discord.Color {
 }
 
 // lines returns the spans of the card's names, shown beside the avatar, and of the rest of its text.
-func (m Model) lines() (header, body []text.Span) {
+func (m Model) lines() (header, status, body []text.Span) {
 	user := m.user
 	if m.profile != nil && m.profile.User.ID.IsValid() {
 		user = m.profile.User.User
@@ -409,20 +412,17 @@ func (m Model) lines() (header, body []text.Span) {
 	header = builder.Finish()
 	builder = markdown.Builder{}
 
-	// What the user says and does comes first, together, as the members list cuts it: the custom status in
-	// quotes, then each activity with what it tells.
+	// What the user says and does comes right under the names, whatever else the profile has, as the members
+	// list cuts it: the custom status in quotes, then each activity with what it tells, a blank line before each.
 	if presence, _ := m.state.Cabinet.Presence(m.guildID, user.ID); presence != nil {
-		status := customStatus(presence.Activities)
-		lines := activityLines(presence.Activities, time.Now())
-		if status != "" || len(lines) != 0 {
+		if status := customStatus(presence.Activities); status != "" {
 			builder.NewLine()
-		}
-		if status != "" {
 			writeLinked(&builder, "“"+status+"”", tcell.StyleDefault.Italic(true))
 			builder.NewLine()
 		}
-		for _, line := range lines {
+		for _, line := range activityLines(presence.Activities, time.Now()) {
 			if line[0] != "" {
+				builder.NewLine()
 				builder.Write(line[0], tcell.StyleDefault.Bold(true))
 			} else {
 				writeLinked(&builder, line[1], tcell.StyleDefault)
@@ -430,6 +430,8 @@ func (m Model) lines() (header, body []text.Span) {
 			builder.NewLine()
 		}
 	}
+	status = builder.Finish()
+	builder = markdown.Builder{}
 
 	if bio := m.bio(); bio != "" {
 		builder.NewLine()
@@ -458,7 +460,7 @@ func (m Model) lines() (header, body []text.Span) {
 		builder.Write(strconv.Itoa(len(m.profile.MutualGuilds)), tcell.StyleDefault)
 	}
 
-	return header, builder.Finish()
+	return header, status, builder.Finish()
 }
 
 // member returns the user as a member of the guild, or nil outside of one or if they are not known there.

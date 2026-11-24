@@ -13,7 +13,6 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/login/qr"
 	"github.com/ayn2op/discordo/internal/ui/login/token"
 	"github.com/ayn2op/tview"
-	"github.com/ayn2op/tview/backdrop"
 	"github.com/ayn2op/tview/box"
 	"github.com/ayn2op/tview/cmd"
 	"github.com/ayn2op/tview/column"
@@ -222,5 +221,5 @@ func (m Model) View() tview.Widget {
 	if m.dialog == nil {
 		return content
 	}
-	return stack.New(inert.New(content), backdrop.New().Style(m.cfg.Theme.Dialog.BackgroundStyle.Style), m.dialogView())
+	return stack.New(inert.New(content), ui.NewBackdrop(m.cfg.Theme.Dialog.BackgroundStyle.Style), m.dialogView())
 }

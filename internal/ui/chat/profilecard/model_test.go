@@ -52,7 +52,7 @@ func newTestModel(t *testing.T) (Model, discord.User) {
 
 func cardText(m Model) string {
 	var got strings.Builder
-	header, body := m.lines()
+	header, _, body := m.lines()
 	for _, span := range append(header, body...) {
 		got.WriteString(span.Text)
 	}
