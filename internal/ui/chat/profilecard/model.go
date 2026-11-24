@@ -421,10 +421,15 @@ func (m Model) lines() (header, status, body []text.Span) {
 			builder.NewLine()
 		}
 		for _, line := range activityLines(presence.Activities, time.Now()) {
-			if line[0] != "" {
+			switch {
+			case line[0] != "" && user.Bot:
+				// A bot writes its activity itself, as a person writes a custom status: it is shown as one.
+				builder.NewLine()
+				writeLinked(&builder, "“"+line[0]+"”", tcell.StyleDefault.Italic(true))
+			case line[0] != "":
 				builder.NewLine()
 				builder.Write(line[0], tcell.StyleDefault.Bold(true))
-			} else {
+			default:
 				writeLinked(&builder, line[1], tcell.StyleDefault)
 			}
 			builder.NewLine()
