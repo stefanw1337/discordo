@@ -2,6 +2,8 @@
 package picker
 
 import (
+	"reflect"
+
 	"github.com/ayn2op/discordo/internal/config"
 	"github.com/ayn2op/discordo/internal/ui"
 	"github.com/ayn2op/tview"
@@ -69,5 +71,50 @@ func (m Model) View(onSelect func(picker.Item) tview.Msg, onCancel tview.Msg) tv
 		OnChange(func(s *picker.SearchState) tview.Msg { return changeMsg(*s) }).
 		OnSelect(onSelect).
 		OnCancel(onCancel)
-	return ui.Box(p, cfg, true).Title(ui.Label(m.title, cfg.Theme.Title, true))
+	clicks := clickWidget{Widget: p, cursor: cursorOf(m.searchState), items: m.items, onSelect: onSelect}
+	return ui.Box(clicks, cfg, true).Title(ui.Label(m.title, cfg.Theme.Title, true))
+}
+
+// queryHeight is the query and the line under it, above the items.
+const queryHeight = 2
+
+// clickWidget picks an item clicked once it is selected: the first click selects it, the next picks it, as enter does.
+type clickWidget struct {
+	tview.Widget
+	// cursor is the match selected before the click.
+	cursor   int
+	items    picker.Items
+	onSelect func(picker.Item) tview.Msg
+}
+
+func (w clickWidget) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
+	handled := w.Widget.Handle(msg, area)
+	mouse, ok := msg.(tview.MouseMsg)
+	if !ok || mouse.Action != tview.MouseLeftDown || w.onSelect == nil {
+		return handled
+	}
+	if _, y := mouse.Position(); y < area.Y+queryHeight {
+		return handled
+	}
+	change, ok := handled.(changeMsg)
+	if !ok {
+		return handled
+	}
+	state := picker.SearchState(change)
+	if cursorOf(state) != w.cursor {
+		return handled
+	}
+	item, ok := state.Selected(w.items)
+	if !ok {
+		return handled
+	}
+	if selected := w.onSelect(item); selected != nil {
+		return selected
+	}
+	return handled
+}
+
+// cursorOf returns the match selected in state, which the picker keeps to itself.
+func cursorOf(state picker.SearchState) int {
+	return int(reflect.ValueOf(state).FieldByName("cursor").Int())
 }
