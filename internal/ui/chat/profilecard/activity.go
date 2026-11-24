@@ -8,11 +8,8 @@ import (
 	"github.com/ayn2op/arikawa/v3/discord"
 )
 
-// activityLines returns what the user is doing, as the profile in Discord shows it: for each activity a heading,
-// such as "Listening to Spotify", then what it tells, such as the song, its artists and album, and how far it is.
-func activityLines(activities []discord.Activity, now time.Time) [][2]string {
-	var lines [][2]string
-	// The custom status comes first, whole, as the members list cuts it to its width.
+// customStatus returns the user's custom status, whole, with its emoji if it is one a terminal can draw, or "".
+func customStatus(activities []discord.Activity) string {
 	for _, a := range activities {
 		if a.Type != discord.CustomActivity {
 			continue
@@ -22,9 +19,16 @@ func activityLines(activities []discord.Activity, now time.Time) [][2]string {
 			status = strings.TrimSpace(a.Emoji.Name + " " + status)
 		}
 		if status != "" {
-			lines = append(lines, [2]string{"", status})
+			return status
 		}
 	}
+	return ""
+}
+
+// activityLines returns what the user is doing, as the profile in Discord shows it: for each activity a heading,
+// such as "Listening to Spotify", then what it tells, such as the song, its artists and album, and how far it is.
+func activityLines(activities []discord.Activity, now time.Time) [][2]string {
+	var lines [][2]string
 	for _, a := range activities {
 		heading := ""
 		switch a.Type {

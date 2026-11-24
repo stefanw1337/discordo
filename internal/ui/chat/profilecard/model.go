@@ -352,6 +352,15 @@ func (m Model) lines() (header, body []text.Span) {
 		handle += " · " + pronouns
 	}
 	builder.Write(handle, dim)
+	presence, _ := m.state.Cabinet.Presence(m.guildID, user.ID)
+	if presence != nil {
+		// The custom status, whole, where it is seen first, as the members list cuts it.
+		if status := customStatus(presence.Activities); status != "" {
+			builder.NewLine()
+			builder.NewLine()
+			builder.Write("“"+status+"”", tcell.StyleDefault.Italic(true))
+		}
+	}
 	header = builder.Finish()
 	builder = markdown.Builder{}
 
@@ -361,7 +370,7 @@ func (m Model) lines() (header, body []text.Span) {
 		builder.NewLine()
 	}
 
-	if presence, err := m.state.Cabinet.Presence(m.guildID, user.ID); err == nil {
+	if presence != nil {
 		if lines := activityLines(presence.Activities, time.Now()); len(lines) != 0 {
 			builder.NewLine()
 			for _, line := range lines {

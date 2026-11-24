@@ -15,7 +15,7 @@ func TestActivityLines(t *testing.T) {
 		Timestamps: &discord.ActivityTimestamps{Start: discord.UnixMsTimestamp(start.UnixMilli()), End: discord.UnixMsTimestamp(start.Add(225 * time.Second).UnixMilli())},
 	}
 	lines := activityLines([]discord.Activity{{Type: discord.CustomActivity, State: "hi"}, song}, start.Add(83*time.Second))
-	want := [][2]string{{"", "hi"}, {"Listening to Spotify", ""}, {"", "ODD YOUTH"}, {"", "by A, B"}, {"", "on The Album"}, {"", "1:23 / 3:45"}}
+	want := [][2]string{{"Listening to Spotify", ""}, {"", "ODD YOUTH"}, {"", "by A, B"}, {"", "on The Album"}, {"", "1:23 / 3:45"}}
 	if len(lines) != len(want) {
 		t.Fatalf("lines = %v", lines)
 	}
@@ -23,5 +23,12 @@ func TestActivityLines(t *testing.T) {
 		if lines[i] != want[i] {
 			t.Fatalf("line %d = %v, want %v", i, lines[i], want[i])
 		}
+	}
+}
+
+func TestCustomStatus(t *testing.T) {
+	status := customStatus([]discord.Activity{{Type: discord.GameActivity, Name: "x"}, {Type: discord.CustomActivity, State: "have you heard", Emoji: &discord.Emoji{Name: "🔑"}}})
+	if status != "🔑 have you heard" {
+		t.Fatalf("customStatus = %q", status)
 	}
 }
