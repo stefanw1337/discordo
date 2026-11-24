@@ -182,6 +182,10 @@ func (s *Screen) animate() {
 func (s *Screen) nextFrames() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	// Animations wait while the screen scrolls, for scrolling not to be slowed by their frames.
+	if s.now().Sub(s.moved) < settle {
+		return
+	}
 	for where, image := range s.written {
 		e, ok := lookup(image.id)
 		if !ok {
