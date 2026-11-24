@@ -1,10 +1,8 @@
 package profilecard
 
 import (
-	"fmt"
 	"image"
 	"image/color"
-	"log/slog"
 	"strings"
 	"sync"
 
@@ -14,6 +12,14 @@ import (
 	"golang.org/x/image/font/gofont/gomonobold"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
+)
+
+const (
+	// plateOpacity is how much of the nameplate shows, over the color behind it, plateBackground how much of
+	// that color shows at the right end, and plateShade how dark it is, of the nameplate's own color.
+	plateOpacity    = 0.6
+	plateBackground = 0.85
+	plateShade      = 0.45
 )
 
 // plateLine is a line of text drawn over a nameplate, in its color.
@@ -45,33 +51,40 @@ func loadFonts() {
 func composePlate(plate image.Image, width, height, rows int, lines []plateLine) image.Image {
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if bounds := plate.Bounds(); bounds.Dx() > 0 && bounds.Dy() > 0 {
-		// Where the nameplate has anything, by column, tells whether it is kept to the right as Discord shows it.
-		first, last := -1, -1
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-				if _, _, _, a := plate.At(x, y).RGBA(); a > 0x8000 {
-					if first < 0 {
-						first = x - bounds.Min.X
-					}
-					last = x - bounds.Min.X
-					break
-				}
-			}
-		}
-		slog.Info("drawing names over nameplate", "size", bounds.Size(), "columns", fmt.Sprintf("%d-%d", first, last), "into", image.Pt(width, height))
 		// Scaled to the height and kept to the right, where Discord shows it.
 		w := bounds.Dx() * height / bounds.Dy()
 		scaled := image.NewNRGBA(image.Rect(0, 0, w, height))
 		xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), plate, bounds, xdraw.Src, nil)
+
+		// Discord fills the row behind the name with the nameplate's color, darkened, coming in from the left: it is
+		// taken from the nameplate's own pixels.
+		var r, g, b, n float64
+		for i := 0; i+3 < len(scaled.Pix); i += 4 {
+			if a := scaled.Pix[i+3]; a > 128 {
+				r, g, b, n = r+float64(scaled.Pix[i]), g+float64(scaled.Pix[i+1]), b+float64(scaled.Pix[i+2]), n+1
+			}
+		}
+		if n > 0 {
+			r, g, b = r/n*plateShade, g/n*plateShade, b/n*plateShade
+		}
 		for y := range height {
-			for x := range w {
-				c := scaled.NRGBAAt(x, y)
-				at := width - w + x
-				if at < 0 {
+			for x := range width {
+				// The color, from none at the left to most at the right.
+				backA := plateBackground * float64(x) / float64(max(width-1, 1))
+				var front color.NRGBA
+				if at := x - (width - w); at >= 0 && at < w {
+					front = scaled.NRGBAAt(at, y)
+				}
+				// The nameplate itself, see-through, over the color.
+				frontA := float64(front.A) / 255 * plateOpacity
+				outA := frontA + backA*(1-frontA)
+				if outA <= 0 || n == 0 && frontA == 0 {
 					continue
 				}
-				// The nameplate fades out to the left by itself, as Discord draws it.
-				dst.SetNRGBA(at, y, c)
+				mix := func(f uint8, back float64) uint8 {
+					return uint8(min((float64(f)*frontA+back*backA*(1-frontA))/outA, 255))
+				}
+				dst.SetNRGBA(x, y, color.NRGBA{mix(front.R, r), mix(front.G, g), mix(front.B, b), uint8(outA * 255)})
 			}
 		}
 	}

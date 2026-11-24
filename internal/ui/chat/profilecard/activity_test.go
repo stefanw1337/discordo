@@ -71,11 +71,13 @@ func TestComposePlate(t *testing.T) {
 	if nrgba.Bounds().Dx() != 370 || nrgba.Bounds().Dy() != 40 {
 		t.Fatalf("size = %v", nrgba.Bounds())
 	}
-	if right := nrgba.NRGBAAt(365, 5); right.A != 255 || right.R != 200 {
+	if right := nrgba.NRGBAAt(365, 5); right.A < 200 || right.R < 150 || right.G > 20 {
 		t.Fatalf("the nameplate is not kept to the right: %v", right)
 	}
-	if left := nrgba.NRGBAAt(370-213-5, 30); left.A != 0 {
-		t.Fatalf("the nameplate's empty half is drawn: %v", left)
+	// Its color comes in from the left, behind the name.
+	left, middle := nrgba.NRGBAAt(0, 30), nrgba.NRGBAAt(185, 30)
+	if left.A != 0 || middle.A == 0 || middle.R == 0 || middle.G != 0 {
+		t.Fatalf("the color behind the name: %v at the left, %v in the middle", left, middle)
 	}
 	yellow := false
 	for x := range 150 {
