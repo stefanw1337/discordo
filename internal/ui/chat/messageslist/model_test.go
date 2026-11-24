@@ -16,9 +16,9 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/emojis"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
-	"github.com/ayn2op/tview/viewport"
 	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/layout"
+	"github.com/ayn2op/tview/viewport"
 	"github.com/gdamore/tcell/v3"
 	"github.com/gdamore/tcell/v3/vt"
 )
