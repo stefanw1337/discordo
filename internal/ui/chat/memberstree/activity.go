@@ -1,6 +1,8 @@
 package memberstree
 
 import (
+	"strings"
+
 	"github.com/ayn2op/arikawa/v3/discord"
 )
 
@@ -30,6 +32,13 @@ func activityText(activities []discord.Activity) string {
 			}
 			return "Streaming " + activity.Name
 		case discord.ListeningActivity:
+			// Music, as Spotify's, gives its song and artists, which Discord shows after a note.
+			if activity.Details != "" {
+				if activity.State != "" {
+					return "♫ " + activity.Details + " – " + strings.ReplaceAll(activity.State, "; ", ", ")
+				}
+				return "♫ " + activity.Details
+			}
 			return "Listening to " + activity.Name
 		case discord.WatchingActivity:
 			return "Watching " + activity.Name

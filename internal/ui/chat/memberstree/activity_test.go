@@ -15,6 +15,7 @@ func TestActivityText(t *testing.T) {
 		{"nothing", nil, ""},
 		{"game", []discord.Activity{{Type: discord.GameActivity, Name: "Star Citizen"}}, "Playing Star Citizen"},
 		{"music", []discord.Activity{{Type: discord.ListeningActivity, Name: "Spotify"}}, "Listening to Spotify"},
+		{"song", []discord.Activity{{Type: discord.ListeningActivity, Name: "Spotify", Details: "ODD YOUTH", State: "Artist A; Artist B"}}, "♫ ODD YOUTH – Artist A, Artist B"},
 		{"custom status first", []discord.Activity{
 			{Type: discord.GameActivity, Name: "Star Citizen"},
 			{Type: discord.CustomActivity, State: "afk", Emoji: &discord.Emoji{Name: "💤"}},

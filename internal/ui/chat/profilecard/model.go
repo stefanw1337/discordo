@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ayn2op/arikawa/v3/api"
 	"github.com/ayn2op/arikawa/v3/discord"
@@ -358,6 +359,20 @@ func (m Model) lines() (header, body []text.Span) {
 		builder.NewLine()
 		builder.Write(bio, tcell.StyleDefault)
 		builder.NewLine()
+	}
+
+	if presence, err := m.state.Cabinet.Presence(m.guildID, user.ID); err == nil {
+		if lines := activityLines(presence.Activities, time.Now()); len(lines) != 0 {
+			builder.NewLine()
+			for _, line := range lines {
+				if line[0] != "" {
+					builder.Write(line[0], tcell.StyleDefault.Bold(true))
+				} else {
+					builder.Write(line[1], tcell.StyleDefault)
+				}
+				builder.NewLine()
+			}
+		}
 	}
 
 	if roles := m.roleNames(member); len(roles) != 0 {
