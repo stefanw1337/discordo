@@ -4,7 +4,6 @@ package profilecard
 import (
 	"cmp"
 	"fmt"
-	"hash/fnv"
 	"image"
 	"image/color"
 	"regexp"
@@ -122,19 +121,13 @@ func (m Model) nameplateURL() discord.URL {
 	return cdn + "/assets/collectibles/" + m.profile.User.Collectibles.Nameplate.Asset + "static.png"
 }
 
-// plateURL is the nameplate with the names drawn over it: the nameplate's address, told apart by the names, which
-// it is loaded from.
+// plateURL is the nameplate with the names drawn over it, which is loaded from the nameplate's address.
 func (m Model) plateURL() discord.URL {
 	url := m.nameplateURL()
 	if url == "" {
 		return ""
 	}
-	hash := fnv.New32a()
-	for _, line := range m.plateLines() {
-		r, g, b, _ := line.color.RGBA()
-		fmt.Fprintf(hash, "%s|%d,%d,%d|%v\n", line.text, r, g, b, line.bold)
-	}
-	return discord.URL(fmt.Sprintf("%s#names-%x", url, hash.Sum32()))
+	return url + "#with-names"
 }
 
 // plateLines are the names drawn over the nameplate: the name, in its role's color, then the handle and pronouns.

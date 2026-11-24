@@ -3,6 +3,7 @@ package profilecard
 import (
 	"image"
 	"image/color"
+	"strings"
 	"sync"
 
 	xdraw "golang.org/x/image/draw"
@@ -80,7 +81,7 @@ func composePlate(plate image.Image, width, height, rows int, lines []plateLine)
 			continue
 		}
 		drawer := font.Drawer{Dst: dst, Src: image.NewUniform(line.color), Face: face}
-		text := fitText(drawer, line.text, width-cell/2)
+		text := fitText(drawer, drawable(face, line.text), width-cell/2)
 		drawer.Dot = fixed.P(cell/4, row*cell+cell*4/5)
 		// A shadow keeps the text readable over a bright nameplate.
 		shadow := drawer
@@ -91,6 +92,17 @@ func composePlate(plate image.Image, width, height, rows int, lines []plateLine)
 		_ = face.Close()
 	}
 	return dst
+}
+
+// drawable leaves out of text what face has no glyph for, such as the ornaments some names have, which would be
+// drawn as empty boxes.
+func drawable(face font.Face, text string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if _, ok := face.GlyphAdvance(r); !ok {
+			return -1
+		}
+		return r
+	}, text))
 }
 
 // fitText cuts text, ending it with …, to fit within width pixels.
