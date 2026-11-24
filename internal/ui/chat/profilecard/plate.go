@@ -1,8 +1,10 @@
 package profilecard
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -43,6 +45,15 @@ func loadFonts() {
 func composePlate(plate image.Image, width, height, rows int, lines []plateLine) image.Image {
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if bounds := plate.Bounds(); bounds.Dx() > 0 && bounds.Dy() > 0 {
+		opaque := 0
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				if _, _, _, a := plate.At(x, y).RGBA(); a > 0x8000 {
+					opaque++
+				}
+			}
+		}
+		slog.Info("drawing names over nameplate", "type", fmt.Sprintf("%T", plate), "size", bounds.Size(), "opaque", opaque, "into", image.Pt(width, height))
 		// Scaled to the height, turned around as Discord shows it, and kept to the right.
 		w := bounds.Dx() * height / bounds.Dy()
 		scaled := image.NewNRGBA(image.Rect(0, 0, w, height))
