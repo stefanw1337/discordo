@@ -163,9 +163,18 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 	for url, fit := range fitted {
 		if fit.Fill {
 			cols, rows := fit.MaxCols, fit.MaxRows
+			if fit.Beside > 0 {
+				cols -= min(cols-1, squareCols(fit.Beside, cell)+1)
+			}
 			bounds := image.Rect(0, 0, int(cols*cellWidth), int(rows*cellHeight))
+			compose := fit.Compose
 			cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) images.Widget {
-				return m.newImage(cropTo(img, bounds.Dx(), bounds.Dy()), int(cols), int(cellWidth), int(cellHeight))
+				if compose != nil {
+					img = compose(img, bounds.Dx(), bounds.Dy())
+				} else {
+					img = cropTo(img, bounds.Dx(), bounds.Dy())
+				}
+				return m.newImage(img, int(cols), int(cellWidth), int(cellHeight))
 			}))
 			continue
 		}

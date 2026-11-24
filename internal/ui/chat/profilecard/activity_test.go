@@ -3,6 +3,8 @@ package profilecard
 import (
 	"github.com/ayn2op/discordo/internal/markdown"
 	"github.com/gdamore/tcell/v3"
+	"image"
+	"image/color"
 	"testing"
 	"time"
 
@@ -53,5 +55,36 @@ func TestWriteLinked(t *testing.T) {
 	}
 	if url != "https://pastebin.com/nFHuAt3v" {
 		t.Fatalf("link = %q", url)
+	}
+}
+
+func TestComposePlate(t *testing.T) {
+	plate := image.NewNRGBA(image.Rect(0, 0, 600, 116))
+	for y := range 116 {
+		for x := range 600 {
+			plate.SetNRGBA(x, y, color.NRGBA{200, 0, 0, 255})
+		}
+	}
+	img := composePlate(plate, 330, 80, 4, []plateLine{{text: "stefanw1337", color: color.NRGBA{255, 255, 0, 255}, bold: true}, {text: "@stefanw1337", color: color.NRGBA{150, 150, 150, 255}}})
+	nrgba := img.(*image.NRGBA)
+	if nrgba.Bounds().Dx() != 330 || nrgba.Bounds().Dy() != 80 {
+		t.Fatalf("size = %v", nrgba.Bounds())
+	}
+	if right := nrgba.NRGBAAt(320, 5); right.A != 255 || right.R != 200 {
+		t.Fatalf("the right end is not the nameplate: %v", right)
+	}
+	if left := nrgba.NRGBAAt(1, 5); left.A != 0 {
+		t.Fatalf("the left end does not fade out: %v", left)
+	}
+	yellow := false
+	for x := range 200 {
+		for y := 20; y < 40; y++ {
+			if c := nrgba.NRGBAAt(x, y); c.R > 200 && c.G > 200 && c.B < 80 {
+				yellow = true
+			}
+		}
+	}
+	if !yellow {
+		t.Fatal("the name was not drawn on the second row")
 	}
 }

@@ -4,7 +4,9 @@ package profilecard
 import (
 	"cmp"
 	"fmt"
+	"hash/fnv"
 	"image"
+	"image/color"
 	"regexp"
 	"slices"
 	"strconv"
@@ -77,9 +79,7 @@ const (
 	accentRows = 2
 	// bannerSize is the size of a banner in pixels, 5 by 2.
 	bannerWidth, bannerHeight = 600, 240
-	// nameplateRows is the most rows the nameplate takes, under the names, and nameplateSize its usual size.
-	nameplateRows                   = 3
-	nameplateCols                   = 14
+	// nameplateSize is the usual size of a nameplate, which is drawn as tall as the avatar, behind the names.
 	nameplateWidth, nameplateHeight = 600, 116
 	// innerWidth is the width inside the card's borders and padding.
 	innerWidth = Width - 4
@@ -122,6 +122,51 @@ func (m Model) nameplateURL() discord.URL {
 	return cdn + "/assets/collectibles/" + m.profile.User.Collectibles.Nameplate.Asset + "static.png"
 }
 
+// plateURL is the nameplate with the names drawn over it: the nameplate's address, told apart by the names, which
+// it is loaded from.
+func (m Model) plateURL() discord.URL {
+	url := m.nameplateURL()
+	if url == "" {
+		return ""
+	}
+	hash := fnv.New32a()
+	for _, line := range m.plateLines() {
+		r, g, b, _ := line.color.RGBA()
+		fmt.Fprintf(hash, "%s|%d,%d,%d|%v\n", line.text, r, g, b, line.bold)
+	}
+	return discord.URL(fmt.Sprintf("%s#names-%x", url, hash.Sum32()))
+}
+
+// plateLines are the names drawn over the nameplate: the name, in its role's color, then the handle and pronouns.
+func (m Model) plateLines() []plateLine {
+	header, _, _ := m.lines()
+	lines := []plateLine{{}}
+	for _, span := range header {
+		for i, part := range strings.Split(span.Text, "\n") {
+			if i > 0 {
+				lines = append(lines, plateLine{})
+			}
+			line := &lines[len(lines)-1]
+			if part == "" {
+				continue
+			}
+			if line.text == "" {
+				line.color = color.NRGBA{220, 221, 222, 255}
+				if fg := span.Style.GetForeground(); fg != tcell.ColorDefault && fg.Valid() {
+					r, g, b := fg.RGB()
+					line.color = color.NRGBA{uint8(r), uint8(g), uint8(b), 255}
+				} else if span.Style.HasDim() {
+					line.color = color.NRGBA{150, 152, 157, 255}
+				}
+			}
+			line.text += part
+		}
+	}
+	// The name stands out, as Discord shows it.
+	lines[0].bold = true
+	return slices.DeleteFunc(lines, func(l plateLine) bool { return strings.TrimSpace(l.text) == "" })
+}
+
 func (m Model) hasImage(url discord.URL) bool {
 	_, ok := m.images[url]
 	return ok
@@ -136,8 +181,14 @@ func (m Model) loadImages() tview.Cmd {
 	if url := m.bannerURL(); url != "" && !m.hasImage(url) {
 		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows, Fill: true}
 	}
-	if url := m.nameplateURL(); url != "" && !m.hasImage(url) {
-		request.Fitted[url] = images.Fit{Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: nameplateCols, MaxRows: nameplateRows, Mirror: true}
+	if url := m.plateURL(); url != "" && !m.hasImage(url) {
+		lines := m.plateLines()
+		request.Fitted[url] = images.Fit{
+			Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: avatarRows, Beside: avatarRows, Fill: true,
+			Compose: func(img image.Image, width, height int) image.Image {
+				return composePlate(img, width, height, avatarRows, lines)
+			},
+		}
 	}
 	if len(request.Squares) == 0 && len(request.Fitted) == 0 {
 		return nil
@@ -318,10 +369,10 @@ func (m Model) View() tview.Widget {
 
 	header, status, body := m.lines()
 	var names tview.Widget = text.Rich(header...)
-	// The nameplate, which Discord shows behind the name at its right end, is shown beside the names, at the right,
-	// as text cannot be drawn over an image.
-	if nameplate, ok := m.images[m.nameplateURL()]; ok && m.nameplateURL() != "" {
-		names = row.New(names, nameplate).Spacing(1).Height(layout.Shrink)
+	// The nameplate is shown as Discord shows it, behind the names, which are drawn into it, as a terminal cannot
+	// draw text over an image.
+	if plate, ok := m.images[m.plateURL()]; ok && m.plateURL() != "" {
+		names = plate
 	}
 	if avatar, ok := m.images[m.avatarURL()]; ok {
 		names = row.New(avatar, names).Spacing(1).Height(layout.Shrink)

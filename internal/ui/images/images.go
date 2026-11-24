@@ -27,6 +27,11 @@ type Fit struct {
 	Fill bool
 	// Mirror turns the image around left to right, as Discord shows a nameplate.
 	Mirror bool
+	// Beside, with Fill, leaves room on the left for a square image this many rows tall, and a cell between.
+	Beside uint
+	// Compose, with Fill, makes the picture shown from the image loaded and the size in pixels it fills, such as
+	// a nameplate with the name drawn over it.
+	Compose func(img image.Image, width, height int) image.Image
 }
 
 // Widget is an image to draw: a widget of its own, or lines of text within other text, as custom emoji are.
