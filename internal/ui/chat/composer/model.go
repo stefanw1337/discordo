@@ -676,7 +676,9 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, m.showAutocomplete()
 	case tview.PasteMsg:
 		// A file dragged onto the terminal is pasted as its path: it is attached instead.
-		if paths := droppedFiles(string(msg)); paths != nil && m.canAttachFiles() {
+		paths := droppedFiles(string(msg))
+		slog.Info("pasted text", "bytes", len(msg), "files", len(paths), "can_attach", m.canAttachFiles())
+		if paths != nil && m.canAttachFiles() {
 			return m, m.attachFiles(openFiles(paths))
 		}
 		// Text the terminal pasted itself, as Windows Terminal does on ctrl+v.
@@ -711,6 +713,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		// Windows Terminal types the path of a file dropped onto it, rather than pasting it: once the text is
 		// whole paths of files, they are attached instead.
 		if paths := droppedFiles(m.text); paths != nil && m.canAttachFiles() {
+			slog.Info("typed the path of a file, attaching it", "files", len(paths))
 			m.setText("", 0)
 			return m, m.attachFiles(openFiles(paths))
 		}
