@@ -28,3 +28,18 @@ func TestDroppedFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestDroppedFileTypedIsAttached(t *testing.T) {
+	c, _ := newTestModel(t)
+	path := filepath.Join(t.TempDir(), "clip.mp4")
+	if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !looksLikePath(path) || looksLikePath("hello /there") {
+		t.Fatal("looksLikePath")
+	}
+	limit := c.uploadLimit()
+	if limit != 10*1024*1024 {
+		t.Fatalf("limit without Nitro = %d", limit)
+	}
+}

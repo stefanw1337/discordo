@@ -677,10 +677,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	case tview.PasteMsg:
 		// A file dragged onto the terminal is pasted as its path: it is attached instead.
 		if paths := droppedFiles(string(msg)); paths != nil && m.canAttachFiles() {
-			for _, file := range openFiles(paths) {
-				m.attach(file.Name, file.Reader)
-			}
-			return m, nil
+			return m, m.attachFiles(openFiles(paths))
 		}
 		// Text the terminal pasted itself, as Windows Terminal does on ctrl+v.
 		m.insert(string(msg))
@@ -698,11 +695,7 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		if selectedChannel == nil || selectedChannel.ID != msg.channelID {
 			return m, closeFiles(msg.files)
 		}
-		for _, file := range msg.files {
-			m.attach(file.Name, file.Reader)
-		}
-
-		return m, nil
+		return m, m.attachFiles(msg.files)
 	case PostFailedMsg:
 		// What was written for the post comes back, unless something else was started since.
 		if m.post == nil && m.editing == nil && m.text == "" {
@@ -715,6 +708,12 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case editMsg:
 		m.setText(msg.text, msg.cursor)
+		// Windows Terminal types the path of a file dropped onto it, rather than pasting it: once the text is
+		// whole paths of files, they are attached instead.
+		if paths := droppedFiles(m.text); paths != nil && m.canAttachFiles() {
+			m.setText("", 0)
+			return m, m.attachFiles(openFiles(paths))
+		}
 		typingCmd := m.sendTyping()
 		return m, cmd.Batch{typingCmd, m.showAutocomplete()}
 

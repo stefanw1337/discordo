@@ -2,6 +2,8 @@ package composer
 
 import (
 	"context"
+	"fmt"
+	"github.com/ayn2op/discordo/internal/ui"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -144,6 +146,10 @@ func (m Model) pickFiles() tview.Cmd {
 // it holds a space, or nil if text is anything else.
 func droppedFiles(text string) []string {
 	text = strings.TrimSpace(text)
+	// Only text that starts as a path is looked at, for typing not to look for files at every key.
+	if !looksLikePath(text) {
+		return nil
+	}
 	if text == "" || strings.ContainsAny(text, "\r\n") {
 		return nil
 	}
@@ -166,6 +172,66 @@ func droppedFiles(text string) []string {
 		paths = append(paths, path)
 	}
 	return paths
+}
+
+// looksLikePath reports whether text starts as an absolute path does, quoted or not: C:\, \\server or /.
+func looksLikePath(text string) bool {
+	text = strings.TrimLeft(text, "\"'")
+	switch {
+	case strings.HasPrefix(text, "/"), strings.HasPrefix(text, `\\`):
+		return true
+	case len(text) >= 3 && text[1] == ':' && (text[2] == '\\' || text[2] == '/'):
+		return true
+	}
+	return false
+}
+
+// uploadLimit is the largest file the user may send in the channel, in bytes: Discord's limit without Nitro, unless
+// the user's Nitro or the server's boosts raise it.
+func (m Model) uploadLimit() int64 {
+	const mb = 1024 * 1024
+	limit := int64(10 * mb)
+	if me, err := m.state.Cabinet.Me(); err == nil {
+		switch me.Nitro {
+		case discord.NitroFull:
+			limit = 500 * mb
+		case discord.NitroClassic, discord.NitroBasic:
+			limit = 50 * mb
+		}
+	}
+	if m.channel != nil && m.channel.GuildID.IsValid() {
+		if guild, err := m.state.Cabinet.Guild(m.channel.GuildID); err == nil {
+			switch {
+			case guild.NitroBoost >= 3:
+				limit = max(limit, 100*mb)
+			case guild.NitroBoost == 2:
+				limit = max(limit, 50*mb)
+			}
+		}
+	}
+	return limit
+}
+
+// attachFiles attaches files, except those larger than the user may send, which are closed and told of, as Discord
+// would refuse the whole message.
+func (m *Model) attachFiles(files []sendpart.File) tview.Cmd {
+	limit := m.uploadLimit()
+	var tooLarge []string
+	for _, file := range files {
+		if f, ok := file.Reader.(*os.File); ok {
+			if info, err := f.Stat(); err == nil && info.Size() > limit {
+				_ = f.Close()
+				tooLarge = append(tooLarge, fmt.Sprintf("%s (%d MB)", file.Name, info.Size()/(1024*1024)))
+				continue
+			}
+		}
+		m.attach(file.Name, file.Reader)
+	}
+	if len(tooLarge) == 0 {
+		return nil
+	}
+	err := fmt.Errorf("%s is larger than the %d MB you may send here", strings.Join(tooLarge, ", "), limit/(1024*1024))
+	return cmd.Task(func() tview.Msg { return ui.ErrorDialog("attach", err) })
 }
 
 // openFiles opens the files at paths, skipping those that fail to open.
