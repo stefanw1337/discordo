@@ -144,7 +144,17 @@ type Screen struct {
 	now func() time.Time
 	// size is the size of the screen when it was last shown.
 	size [2]int
+	// moved is when images last moved, as they do while scrolling, and pending whether images that moved since
+	// were left to be written once they stop.
+	moved   time.Time
+	pending bool
+	// redrawn is set once the whole screen was drawn anew, whose images are all written at once.
+	redrawn bool
 }
+
+// settle is how long images must stay where they are before those that moved are written again: writing large
+// images at every step of a scroll makes it slow.
+const settle = 120 * time.Millisecond
 
 // frameInterval is how often animations are moved to their next frame.
 const frameInterval = 40 * time.Millisecond
@@ -163,6 +173,7 @@ func (s *Screen) animate() {
 	for range ticker.C {
 		if Enabled() {
 			s.nextFrames()
+			s.writeSettled()
 		}
 	}
 }
@@ -188,6 +199,16 @@ func (s *Screen) nextFrames() {
 	}
 }
 
+// writeSettled writes the images left out while they moved, once they stopped.
+func (s *Screen) writeSettled() {
+	s.mutex.Lock()
+	due := s.pending && s.now().Sub(s.moved) >= settle
+	s.mutex.Unlock()
+	if due {
+		s.writeImages()
+	}
+}
+
 // Show shows the frame drawn, then writes its images over it. Animations, written between, are kept out meanwhile.
 func (s *Screen) Show() {
 	s.mutex.Lock()
@@ -196,6 +217,7 @@ func (s *Screen) Show() {
 	if width, height := s.Size(); [2]int{width, height} != s.size {
 		s.size = [2]int{width, height}
 		clear(s.written)
+		s.redrawn = true
 	}
 	s.Screen.Show()
 	s.mutex.Unlock()
@@ -208,6 +230,7 @@ func (s *Screen) Show() {
 func (s *Screen) Sync() {
 	s.mutex.Lock()
 	clear(s.written)
+	s.redrawn = true
 	s.Screen.Sync()
 	s.mutex.Unlock()
 	if Enabled() {
@@ -246,6 +269,13 @@ func (s *Screen) writeImages() {
 			f.full[row]++
 		}
 	}
+
+	now := s.now()
+	// Images that moved right after others did, as in a scroll, are left out until they stop moving.
+	settling := now.Sub(s.moved) < settle && !s.redrawn
+	s.redrawn = false
+	moved := false
+	s.pending = false
 
 	written := make(map[[2]int]shown, len(marks))
 	for key, f := range marks {
@@ -286,7 +316,18 @@ func (s *Screen) writeImages() {
 		if s.written[where] == image {
 			continue
 		}
+		if before, ok := s.written[where]; !ok || before.id != image.id {
+			moved = true
+			if settling {
+				delete(written, where)
+				s.pending = true
+				continue
+			}
+		}
 		s.write(image, e)
+	}
+	if moved {
+		s.moved = now
 	}
 	s.written = written
 }

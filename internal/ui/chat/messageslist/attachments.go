@@ -159,7 +159,9 @@ func (m Model) saveAttachment(attachment discord.Attachment) tview.Cmd {
 	})
 }
 
-// openURL opens url in the browser, or, for a link into Discord, the channel and message it leads to here.
+// OpenURL opens url in the browser, or, for a link into Discord, the channel and message it leads to here.
+func OpenURL(url string) tview.Cmd { return openURL(url) }
+
 func openURL(url string) tview.Cmd {
 	if channelID, messageID, ok := discordLink(url); ok {
 		return jumpTo(channelID, messageID)

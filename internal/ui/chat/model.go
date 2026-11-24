@@ -500,6 +500,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 	case composer.GIFSearchMsg:
 		m.overlay = overlayGIFs
 		return m, m.gifPicker.Open(msg.Query)
+	case profilecard.OpenLinkMsg:
+		return m, messageslist.OpenURL(msg.URL)
 	case gifpicker.CancelMsg:
 		m.overlay = overlayNone
 		return m, nil

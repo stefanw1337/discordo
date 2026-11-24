@@ -47,6 +47,8 @@ type Model struct {
 	err     error
 	// images are the chat model's, which loads them, by URL.
 	images map[discord.URL]images.Widget
+	// links are where the card's links were drawn.
+	links links
 	// request numbers the profiles asked for, so that the answer for one replaced by another is dropped.
 	request int
 }
@@ -59,6 +61,7 @@ func NewModel(cfg *config.Config, state *ningen.State) Model {
 func (m *Model) Open(user discord.User, guildID discord.GuildID) tview.Cmd {
 	m.request++
 	m.user, m.guildID, m.profile, m.err = user, guildID, nil, nil
+	m.links = links{}
 	request, client := m.request, m.state.Client
 	return cmd.Batch{m.loadImages(), cmd.Task(func() tview.Msg {
 		profile, err := fetch(client, user.ID, guildID)
@@ -238,6 +241,27 @@ type card struct {
 	model Model
 }
 
+// OpenLinkMsg asks to open a link clicked on the profile.
+type OpenLinkMsg struct{ URL string }
+
+// Draw draws the card, noting where its links are, for a click on one to open it.
+func (w card) Draw(screen tview.Screen, area tview.Rectangle) {
+	w.Widget.Draw(screen, area)
+	if w.model.links == nil {
+		return
+	}
+	clear(w.model.links)
+	for y := area.Y; y < area.Y+area.Height; y++ {
+		for x := area.X; x < area.X+area.Width; x++ {
+			if _, style, _ := screen.Get(x, y); style != (tview.Style{}) {
+				if _, url := style.GetUrl(); url != "" {
+					w.model.links[[2]int{x, y}] = url
+				}
+			}
+		}
+	}
+}
+
 func (w card) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 	switch msg := msg.(type) {
 	case tview.KeyMsg:
@@ -246,11 +270,40 @@ func (w card) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
 		}
 	case tview.MouseMsg:
 		if area.Contains(msg.Position()) {
+			if msg.Action == tview.MouseLeftClick && w.model.links != nil {
+				x, y := msg.Position()
+				if url, ok := w.model.links[[2]int{x, y}]; ok {
+					return OpenLinkMsg{URL: url}
+				}
+			}
 			return nil
 		}
 	}
 	return w.Widget.Handle(msg, area)
 }
+
+// links are where the links of the card were drawn last, shared by the copies of the model.
+type links map[[2]int]string
+
+// writeLinked writes text in style, its links as links, which a click opens.
+func writeLinked(builder *markdown.Builder, text string, style tcell.Style) {
+	for text != "" {
+		loc := linkPattern.FindStringIndex(text)
+		if loc == nil {
+			builder.Write(text, style)
+			return
+		}
+		if loc[0] > 0 {
+			builder.Write(text[:loc[0]], style)
+		}
+		url := strings.TrimRight(text[loc[0]:loc[1]], ".,;:!?)\"”'*")
+		builder.Write(url, style.Underline(true).Url(url))
+		text = text[loc[0]+len(url):]
+	}
+}
+
+// linkPattern matches a link in a bio or a status.
+var linkPattern = regexp.MustCompile(`https?://[^\s<>]+`)
 
 // View shows the profile in a box: the banner, or the accent color, the avatar beside the names, then the rest.
 func (m Model) View() tview.Widget {
@@ -365,14 +418,14 @@ func (m Model) lines() (header, body []text.Span) {
 			builder.NewLine()
 		}
 		if status != "" {
-			builder.Write("“"+status+"”", tcell.StyleDefault.Italic(true))
+			writeLinked(&builder, "“"+status+"”", tcell.StyleDefault.Italic(true))
 			builder.NewLine()
 		}
 		for _, line := range lines {
 			if line[0] != "" {
 				builder.Write(line[0], tcell.StyleDefault.Bold(true))
 			} else {
-				builder.Write(line[1], tcell.StyleDefault)
+				writeLinked(&builder, line[1], tcell.StyleDefault)
 			}
 			builder.NewLine()
 		}
@@ -380,7 +433,7 @@ func (m Model) lines() (header, body []text.Span) {
 
 	if bio := m.bio(); bio != "" {
 		builder.NewLine()
-		builder.Write(bio, tcell.StyleDefault)
+		writeLinked(&builder, bio, tcell.StyleDefault)
 		builder.NewLine()
 	}
 

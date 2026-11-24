@@ -202,6 +202,43 @@ func TestScreen(t *testing.T) {
 		t.Fatalf("height = %d pixels, want the one row left uncovered", height)
 	}
 
+	t.Run("scrolled", func(t *testing.T) {
+		at := time.Now().Add(time.Hour)
+		screen.mutex.Lock()
+		screen.now = func() time.Time { return at }
+		screen.mutex.Unlock()
+		draw := func(y int) {
+			screen.Clear()
+			widget.Draw(screen, tview.Rectangle{X: 3, Y: y, Width: 10, Height: 5})
+			screen.Show()
+		}
+		draw(2)
+		out.Reset()
+		// The first step of a scroll is written at once, the steps right after it once they stop.
+		draw(3)
+		if out.Len() == 0 {
+			t.Fatal("the first step of a scroll was not written")
+		}
+		out.Reset()
+		at = at.Add(20 * time.Millisecond)
+		draw(4)
+		if out.Len() != 0 {
+			t.Fatal("an image was written while it kept moving")
+		}
+		screen.writeSettled()
+		if out.Len() != 0 {
+			t.Fatal("an image was written before it settled")
+		}
+		at = at.Add(settle)
+		screen.writeSettled()
+		if !strings.HasPrefix(out.String(), "\x1b[5;4H\x1bP") {
+			t.Fatalf("the image was not written once it settled: %q", out.String())
+		}
+		screen.mutex.Lock()
+		screen.now = time.Now
+		screen.mutex.Unlock()
+	})
+
 	t.Run("resized", func(t *testing.T) {
 		frame(false)
 		out.Reset()

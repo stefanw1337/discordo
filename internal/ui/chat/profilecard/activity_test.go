@@ -1,6 +1,8 @@
 package profilecard
 
 import (
+	"github.com/ayn2op/discordo/internal/markdown"
+	"github.com/gdamore/tcell/v3"
 	"testing"
 	"time"
 
@@ -37,5 +39,19 @@ func TestPlainBio(t *testing.T) {
 	got := plainBio("<:honeypot:1450060724943720600> Ban users\n-# ↪ *link*")
 	if got != ":honeypot: Ban users\n↪ *link*" {
 		t.Fatalf("plainBio = %q", got)
+	}
+}
+
+func TestWriteLinked(t *testing.T) {
+	var builder markdown.Builder
+	writeLinked(&builder, "“see https://pastebin.com/nFHuAt3v”", tcell.StyleDefault)
+	var url string
+	for _, span := range builder.Finish() {
+		if _, u := span.Style.GetUrl(); u != "" {
+			url = u
+		}
+	}
+	if url != "https://pastebin.com/nFHuAt3v" {
+		t.Fatalf("link = %q", url)
 	}
 }
