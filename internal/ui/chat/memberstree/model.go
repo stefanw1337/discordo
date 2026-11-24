@@ -238,9 +238,30 @@ func (m Model) addMember(group *tree.Node, guildID discord.GuildID, member disco
 	if ok {
 		nameStyle = nameStyle.Foreground(tcell.NewHexColor(int32(color)))
 	}
-	spans := []text.Span{{Text: statusMarker}, {Text: " "}, {Text: name, Style: nameStyle}, {}}
-	m.setStatus(spans, m.presence(guildID, member.User.ID))
+	spans := []text.Span{{Text: statusMarker}, {Text: " "}, {Text: name, Style: nameStyle}}
+	presence := m.presence(guildID, member.User.ID)
+	m.setStatus(spans, presence)
 	group.AddChild(m.reuse(member.User.ID.String()).SetSpans(spans...).SetReference(memberRef{userID: member.User.ID, index: index}))
+	if line := m.activityLine(member.User.ID, presence); line != nil {
+		group.AddChild(line)
+	}
+}
+
+// activityRef is the line under a member that tells what they are doing.
+type activityRef discord.UserID
+
+// activityLine returns the line under a member that tells what they are doing, as Discord shows it, or nil if they
+// are doing nothing or activities are not to be shown. It is passed over when moving through the members.
+func (m Model) activityLine(userID discord.UserID, presence discord.Presence) *tree.Node {
+	activity := activityText(presence.Activities)
+	if activity == "" || !m.cfg.UI.MembersTree.ShowActivities {
+		return nil
+	}
+	// The text starts under the name, after the status dot.
+	return tree.NewNode("").
+		SetSpans(text.Span{Text: "  "}, text.Span{Text: activity, Style: tcell.StyleDefault.Dim(true).Italic(true)}).
+		SetSelectable(false).
+		SetReference(activityRef(userID))
 }
 
 const (
@@ -249,17 +270,10 @@ const (
 	defaultGroupName = "Members"
 )
 
-// setStatus styles the status dot and name of a member's spans for their presence, and puts their activity after
-// their name, dimmed, as Discord shows it under it, unless activities are not to be shown.
+// setStatus styles the status dot and name of a member's spans for their presence.
 func (m Model) setStatus(spans []text.Span, presence discord.Presence) {
 	spans[0].Style = m.cfg.Theme.MembersTree.StatusStyle(presence.Status)
 	spans[2].Style = spans[2].Style.Dim(presence.Status == discord.OfflineStatus)
-	if len(spans) > 3 {
-		spans[3] = text.Span{}
-		if activity := activityText(presence.Activities); activity != "" && m.cfg.UI.MembersTree.ShowActivities {
-			spans[3] = text.Span{Text: " · " + activity, Style: tcell.StyleDefault.Dim(true).Italic(true)}
-		}
-	}
 }
 
 // reuse takes the node of id out of the index, so that it is reused once, or else returns a new node. Either way the node has no children.
@@ -273,11 +287,35 @@ func (m Model) reuse(id string) *tree.Node {
 }
 
 func (m Model) refreshStatus(userID discord.UserID) {
-	if node, ok := m.nodes[userID.String()]; ok {
-		spans := node.Spans()
-		m.setStatus(spans, m.presence(m.channel.GuildID, userID))
-		node.SetSpans(spans...)
+	node, ok := m.nodes[userID.String()]
+	if !ok {
+		return
 	}
+	presence := m.presence(m.channel.GuildID, userID)
+	spans := node.Spans()
+	m.setStatus(spans, presence)
+	node.SetSpans(spans...)
+
+	// The line of what the member does, under them, is put in, changed or taken out.
+	group := m.parent(node)
+	if group == nil {
+		return
+	}
+	children := group.Children()
+	i := slices.Index(children, node)
+	if i < 0 {
+		return
+	}
+	children = slices.Clone(children)
+	if i+1 < len(children) {
+		if _, ok := children[i+1].Reference().(activityRef); ok {
+			children = slices.Delete(children, i+1, i+2)
+		}
+	}
+	if line := m.activityLine(userID, presence); line != nil {
+		children = slices.Insert(children, i+1, line)
+	}
+	group.SetChildren(children)
 }
 
 func (m Model) status(guildID discord.GuildID, userID discord.UserID) discord.Status {

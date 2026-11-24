@@ -891,11 +891,11 @@ Default: `"ctrl+l"`
 
 ### keybinds.picker.select_up
 
-Default: `"ctrl+p"`
+Default: `["up", "ctrl+p"]`
 
 ### keybinds.picker.select_down
 
-Default: `"ctrl+n"`
+Default: `["down", "ctrl+n"]`
 
 ### keybinds.picker.select_top
 
@@ -1433,11 +1433,11 @@ Only while the autocomplete is shown.
 
 ### keybinds.autocomplete.select_up
 
-Default: `"ctrl+p"`
+Default: `["up", "ctrl+p"]`
 
 ### keybinds.autocomplete.select_down
 
-Default: `"ctrl+n"`
+Default: `["down", "ctrl+n"]`
 
 ### keybinds.autocomplete.select_top
 

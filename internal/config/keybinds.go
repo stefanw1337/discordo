@@ -337,7 +337,8 @@ func scrollKeybinds(up, down, top, bottom string) ScrollKeybinds {
 
 func defaultKeybinds() Keybinds {
 	vi := selectionKeybinds([]string{"k", "up"}, []string{"j", "down"}, "g", "G")
-	emacs := selectionKeybinds([]string{"ctrl+p"}, []string{"ctrl+n"}, "home", "end")
+	// Arrows first, as they are shown in the help; ctrl+p and ctrl+n stay for who types without leaving the keys.
+	lists := selectionKeybinds([]string{"up", "ctrl+p"}, []string{"down", "ctrl+n"}, "home", "end")
 	tree := TreeKeybinds{
 		SelectionKeybinds: vi,
 		ScrollKeybinds:    scrollKeybinds("pgup", "pgdn", "home", "end"),
@@ -377,7 +378,7 @@ func defaultKeybinds() Keybinds {
 		FocusNext:     key("focus next", "ctrl+l"),
 
 		Picker: PickerKeybinds{
-			SelectionKeybinds: emacs,
+			SelectionKeybinds: lists,
 			Select:            key("sel", "enter"),
 			Cancel:            key("cancel", "esc"),
 		},
@@ -461,7 +462,7 @@ func defaultKeybinds() Keybinds {
 			DeleteToLineStart:     key("del to line start", "ctrl+j"),
 			DeleteToLineEnd:       key("del to line end", "ctrl+shift+k"),
 		},
-		Autocomplete: AutocompleteKeybinds{SelectionKeybinds: emacs},
+		Autocomplete: AutocompleteKeybinds{SelectionKeybinds: lists},
 
 		Logout: key("logout", "ctrl+d"),
 		Quit:   key("quit", "ctrl+q"),
