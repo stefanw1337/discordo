@@ -41,26 +41,31 @@ func loadFonts() {
 }
 
 // composePlate draws a nameplate as Discord shows it behind a name: filling width by height pixels from the right,
-// where Discord shows it, fading out to the left, with lines drawn over it, one to a row of rows, from the second.
+// fading out to the left, with lines drawn over it, one to a row of rows, from the second.
 func composePlate(plate image.Image, width, height, rows int, lines []plateLine) image.Image {
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if bounds := plate.Bounds(); bounds.Dx() > 0 && bounds.Dy() > 0 {
-		opaque := 0
-		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		// Where the nameplate has anything, by column, tells whether it is kept to the right as Discord shows it.
+		first, last := -1, -1
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 				if _, _, _, a := plate.At(x, y).RGBA(); a > 0x8000 {
-					opaque++
+					if first < 0 {
+						first = x - bounds.Min.X
+					}
+					last = x - bounds.Min.X
+					break
 				}
 			}
 		}
-		slog.Info("drawing names over nameplate", "type", fmt.Sprintf("%T", plate), "size", bounds.Size(), "opaque", opaque, "into", image.Pt(width, height))
-		// Scaled to the height, turned around as Discord shows it, and kept to the right.
+		slog.Info("drawing names over nameplate", "size", bounds.Size(), "columns", fmt.Sprintf("%d-%d", first, last), "into", image.Pt(width, height))
+		// Scaled to the height and kept to the right, where Discord shows it.
 		w := bounds.Dx() * height / bounds.Dy()
 		scaled := image.NewNRGBA(image.Rect(0, 0, w, height))
 		xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), plate, bounds, xdraw.Src, nil)
 		for y := range height {
 			for x := range w {
-				c := scaled.NRGBAAt(w-1-x, y)
+				c := scaled.NRGBAAt(x, y)
 				at := width - w + x
 				if at < 0 {
 					continue
