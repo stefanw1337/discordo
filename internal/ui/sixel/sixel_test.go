@@ -202,6 +202,19 @@ func TestScreen(t *testing.T) {
 		t.Fatalf("height = %d pixels, want the one row left uncovered", height)
 	}
 
+	t.Run("resized", func(t *testing.T) {
+		frame(false)
+		out.Reset()
+		// The terminal redraws a resized screen whole, which clears the images, even where cells are unchanged.
+		screen.mutex.Lock()
+		screen.size = [2]int{1, 1}
+		screen.mutex.Unlock()
+		frame(false)
+		if !strings.HasPrefix(out.String(), "\x1b[3;4H\x1bP") {
+			t.Fatal("the image was not written again after a resize")
+		}
+	})
+
 	t.Run("disabled", func(t *testing.T) {
 		SetEnabled(false)
 		defer SetEnabled(true)

@@ -142,6 +142,8 @@ type Screen struct {
 	cache map[shown][]byte
 	// now returns the time, which tests set.
 	now func() time.Time
+	// size is the size of the screen when it was last shown.
+	size [2]int
 }
 
 // frameInterval is how often animations are moved to their next frame.
@@ -189,6 +191,12 @@ func (s *Screen) nextFrames() {
 // Show shows the frame drawn, then writes its images over it. Animations, written between, are kept out meanwhile.
 func (s *Screen) Show() {
 	s.mutex.Lock()
+	// A resized screen is drawn anew, which clears the images over it: they are all written again, even where
+	// the cells under them did not change.
+	if width, height := s.Size(); [2]int{width, height} != s.size {
+		s.size = [2]int{width, height}
+		clear(s.written)
+	}
 	s.Screen.Show()
 	s.mutex.Unlock()
 	if Enabled() {
