@@ -77,3 +77,14 @@ func TestNewPooledCompressor(t *testing.T) {
 		})
 	}
 }
+
+func TestCropTo(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 600, 240))
+	if got := cropTo(img, 420, 160).Bounds(); got.Dx()*160 != got.Dy()*420 && got.Dx() != 600 {
+		t.Fatalf("crop = %v", got)
+	}
+	tall := cropTo(image.NewNRGBA(image.Rect(0, 0, 100, 400)), 50, 20).Bounds()
+	if tall.Dx() != 100 || tall.Dy() != 40 {
+		t.Fatalf("crop of a tall image = %v", tall)
+	}
+}

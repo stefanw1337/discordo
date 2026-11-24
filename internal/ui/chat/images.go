@@ -161,6 +161,14 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 	maps.Copy(fitted, msg.Fitted)
 
 	for url, fit := range fitted {
+		if fit.Fill {
+			cols, rows := fit.MaxCols, fit.MaxRows
+			bounds := image.Rect(0, 0, int(cols*cellWidth), int(rows*cellHeight))
+			cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) images.Widget {
+				return m.newImage(cropTo(img, bounds.Dx(), bounds.Dy()), int(cols), int(cellWidth), int(cellHeight))
+			}))
+			continue
+		}
 		size := fit.Size
 		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, fit.MaxCols, fit.MaxRows)
 		width := min(uint(size.X), uint(cols)*cellWidth)
@@ -283,6 +291,31 @@ func previewCols(width, height, cellWidth, cellHeight, maxWidth, maxHeight uint)
 	// A tall image is not cut off.
 	tall := width * maxHeight * cellHeight / (height * cellWidth)
 	return int(max(min(own, maxWidth, tall), 1))
+}
+
+// cropTo cuts img around its middle to the shape of width by height.
+func cropTo(img image.Image, width, height int) image.Image {
+	bounds := img.Bounds()
+	if width <= 0 || height <= 0 || bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return img
+	}
+	crop := bounds
+	if bounds.Dx()*height > bounds.Dy()*width {
+		// Wider than the shape: the sides are cut.
+		w := bounds.Dy() * width / height
+		crop.Min.X += (bounds.Dx() - w) / 2
+		crop.Max.X = crop.Min.X + w
+	} else {
+		h := bounds.Dx() * height / width
+		crop.Min.Y += (bounds.Dy() - h) / 2
+		crop.Max.Y = crop.Min.Y + h
+	}
+	if crop == bounds {
+		return img
+	}
+	dst := image.NewNRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, crop.Min, draw.Src)
+	return dst
 }
 
 // square centers img on a transparent square.

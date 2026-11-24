@@ -22,6 +22,9 @@ type RequestedMsg struct {
 type Fit struct {
 	Size             image.Point
 	MaxCols, MaxRows uint
+	// Fill makes the image take MaxCols by MaxRows cells whole, cut to that shape around its middle, as a banner
+	// fills the width of a profile.
+	Fill bool
 }
 
 // Widget is an image to draw: a widget of its own, or lines of text within other text, as custom emoji are.

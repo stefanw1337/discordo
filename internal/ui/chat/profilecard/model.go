@@ -133,7 +133,7 @@ func (m Model) loadImages() tview.Cmd {
 		request.Squares[url] = avatarRows
 	}
 	if url := m.bannerURL(); url != "" && !m.hasImage(url) {
-		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows}
+		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows, Fill: true}
 	}
 	if url := m.nameplateURL(); url != "" && !m.hasImage(url) {
 		request.Fitted[url] = images.Fit{Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: nameplateRows}
