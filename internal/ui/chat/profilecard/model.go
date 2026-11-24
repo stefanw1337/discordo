@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"fmt"
 	"image"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -352,36 +353,35 @@ func (m Model) lines() (header, body []text.Span) {
 		handle += " · " + pronouns
 	}
 	builder.Write(handle, dim)
-	presence, _ := m.state.Cabinet.Presence(m.guildID, user.ID)
-	if presence != nil {
-		// The custom status, whole, where it is seen first, as the members list cuts it.
-		if status := customStatus(presence.Activities); status != "" {
-			builder.NewLine()
-			builder.NewLine()
-			builder.Write("“"+status+"”", tcell.StyleDefault.Italic(true))
-		}
-	}
 	header = builder.Finish()
 	builder = markdown.Builder{}
+
+	// What the user says and does comes first, together, as the members list cuts it: the custom status in
+	// quotes, then each activity with what it tells.
+	if presence, _ := m.state.Cabinet.Presence(m.guildID, user.ID); presence != nil {
+		status := customStatus(presence.Activities)
+		lines := activityLines(presence.Activities, time.Now())
+		if status != "" || len(lines) != 0 {
+			builder.NewLine()
+		}
+		if status != "" {
+			builder.Write("“"+status+"”", tcell.StyleDefault.Italic(true))
+			builder.NewLine()
+		}
+		for _, line := range lines {
+			if line[0] != "" {
+				builder.Write(line[0], tcell.StyleDefault.Bold(true))
+			} else {
+				builder.Write(line[1], tcell.StyleDefault)
+			}
+			builder.NewLine()
+		}
+	}
 
 	if bio := m.bio(); bio != "" {
 		builder.NewLine()
 		builder.Write(bio, tcell.StyleDefault)
 		builder.NewLine()
-	}
-
-	if presence != nil {
-		if lines := activityLines(presence.Activities, time.Now()); len(lines) != 0 {
-			builder.NewLine()
-			for _, line := range lines {
-				if line[0] != "" {
-					builder.Write(line[0], tcell.StyleDefault.Bold(true))
-				} else {
-					builder.Write(line[1], tcell.StyleDefault)
-				}
-				builder.NewLine()
-			}
-		}
 	}
 
 	if roles := m.roleNames(member); len(roles) != 0 {
@@ -443,9 +443,23 @@ func (m Model) bio() string {
 		return ""
 	}
 	if guild := m.profile.GuildMemberProfile; guild != nil && guild.Bio != "" {
-		return strings.TrimSpace(guild.Bio)
+		return plainBio(guild.Bio)
 	}
-	return strings.TrimSpace(m.profile.UserProfile.Bio)
+	return plainBio(m.profile.UserProfile.Bio)
+}
+
+// customEmoji matches a custom emoji as a bio holds it, <:name:id> or <a:name:id>.
+var customEmoji = regexp.MustCompile(`<a?:(\w+):\d+>`)
+
+// plainBio writes a bio as it reads: custom emojis, which a terminal cannot draw, by their names, and without the
+// marks of small text ("-# ").
+func plainBio(bio string) string {
+	bio = customEmoji.ReplaceAllString(bio, ":$1:")
+	lines := strings.Split(strings.TrimSpace(bio), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimPrefix(line, "-# ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // pronouns returns the pronouns set for the guild, or else the user's own, or "" before the profile loads.

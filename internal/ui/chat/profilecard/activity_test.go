@@ -32,3 +32,10 @@ func TestCustomStatus(t *testing.T) {
 		t.Fatalf("customStatus = %q", status)
 	}
 }
+
+func TestPlainBio(t *testing.T) {
+	got := plainBio("<:honeypot:1450060724943720600> Ban users\n-# ↪ *link*")
+	if got != ":honeypot: Ban users\n↪ *link*" {
+		t.Fatalf("plainBio = %q", got)
+	}
+}
