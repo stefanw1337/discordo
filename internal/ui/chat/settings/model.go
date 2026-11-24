@@ -84,7 +84,12 @@ func Settings() []Setting {
 	sidebarWidth := newSetting("Server list width", []string{"sidebar", "width_percent"},
 		[]Choice{{"10%", 10}, {"15%", 15}, {"20%", 20}, {"25%", 25}, {"30%", 30}}, true, widthGet, widthSet)
 
-	settings := []Setting{guildIcons, sidebarWidth, timeFormat, dateFormat, images}
+	membersGet := func(c *config.Config) any { return c.MembersTree.WidthPercent }
+	membersSet := func(c *config.Config, value any) { c.MembersTree.WidthPercent = value.(int) }
+	membersWidth := newSetting("Member list width", []string{"members_tree", "width_percent"},
+		[]Choice{{"15%", 15}, {"20%", 20}, {"25%", 25}, {"30%", 30}, {"35%", 35}}, true, membersGet, membersSet)
+
+	settings := []Setting{guildIcons, sidebarWidth, membersWidth, timeFormat, dateFormat, images}
 	settings = append(settings, voiceSettings()...)
 	g, s = boolSetting(func(c *config.Config) *bool { return &c.Activity.Enabled })
 	settings = append(settings,

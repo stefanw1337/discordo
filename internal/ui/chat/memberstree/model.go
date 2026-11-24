@@ -241,7 +241,8 @@ func (m Model) addMember(group *tree.Node, guildID discord.GuildID, member disco
 	spans := []text.Span{{Text: statusMarker}, {Text: " "}, {Text: name, Style: nameStyle}}
 	presence := m.presence(guildID, member.User.ID)
 	m.setStatus(spans, presence)
-	group.AddChild(m.reuse(member.User.ID.String()).SetSpans(spans...).SetReference(memberRef{userID: member.User.ID, index: index}))
+	// Members are indented by one, for the tree's lines to take little of the narrow pane.
+	group.AddChild(m.reuse(member.User.ID.String()).SetSpans(spans...).SetIndent(1).SetReference(memberRef{userID: member.User.ID, index: index}))
 	if line := m.activityLine(member.User.ID, presence); line != nil {
 		group.AddChild(line)
 	}
@@ -261,6 +262,7 @@ func (m Model) activityLine(userID discord.UserID, presence discord.Presence) *t
 	return tree.NewNode("").
 		SetSpans(text.Span{Text: "  "}, text.Span{Text: activity, Style: tcell.StyleDefault.Dim(true).Italic(true)}).
 		SetSelectable(false).
+		SetIndent(1).
 		SetReference(activityRef(userID))
 }
 
