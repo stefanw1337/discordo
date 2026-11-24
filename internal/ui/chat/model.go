@@ -98,6 +98,8 @@ type Model struct {
 	settings settings.Model
 	// programs is the page of the programs shown as the user's activity.
 	programs programs.Model
+	// forwarding is the message whose forward is being sent to the channel picked, if any.
+	forwarding *discord.Message
 	// gifPicker searches GIFs to send, opened by "/gif" in the composer.
 	gifPicker gifpicker.Model
 	// activity is what the user is shown doing.
@@ -270,6 +272,7 @@ func (m *Model) openPicker() {
 }
 
 func (m *Model) closePicker() {
+	m.endForward()
 	m.overlay = overlayNone
 	m.channelsPicker.Reset()
 }
@@ -421,9 +424,16 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		}
 		return m, nil
 	case channelspicker.SelectedMsg:
+		if message := m.forwarding; message != nil {
+			m.closePicker()
+			return m, m.forward(*message, msg.ChannelID)
+		}
 		return m, m.navigateToChannel(msg.ChannelID)
 	case channelspicker.CancelMsg:
 		m.closePicker()
+		return m, nil
+	case messageslist.ForwardMsg:
+		m.startForward(msg.Message)
 		return m, nil
 	case attachmentspicker.SelectedMsg:
 		m.overlay = overlayNone

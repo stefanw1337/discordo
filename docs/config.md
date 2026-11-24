@@ -1246,6 +1246,12 @@ Show the profile of the author of the selected message.
 
 Default: `"P"`
 
+### keybinds.messages_list.forward
+
+Forward the selected message to another channel or direct message, picked from the channels.
+
+Default: `"f"`
+
 ### keybinds.messages_list.open_menu
 
 Show what can be done to the selected message in a menu, as right-clicking it does.

@@ -675,6 +675,13 @@ func (m Model) Update(msg tview.Msg) (Model, tview.Cmd) {
 	case RefreshAutocompleteMsg:
 		return m, m.showAutocomplete()
 	case tview.PasteMsg:
+		// A file dragged onto the terminal is pasted as its path: it is attached instead.
+		if paths := droppedFiles(string(msg)); paths != nil && m.canAttachFiles() {
+			for _, file := range openFiles(paths) {
+				m.attach(file.Name, file.Reader)
+			}
+			return m, nil
+		}
 		// Text the terminal pasted itself, as Windows Terminal does on ctrl+v.
 		m.insert(string(msg))
 		return m, cmd.Batch{m.sendTyping(), m.showAutocomplete()}

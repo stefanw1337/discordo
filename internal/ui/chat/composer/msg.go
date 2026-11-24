@@ -140,6 +140,34 @@ func (m Model) pickFiles() tview.Cmd {
 	})
 }
 
+// droppedFiles returns the files whose paths text is, as a terminal pastes the files dragged onto it, each quoted if
+// it holds a space, or nil if text is anything else.
+func droppedFiles(text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" || strings.ContainsAny(text, "\r\n") {
+		return nil
+	}
+	var paths []string
+	for text != "" {
+		var path string
+		if quote := text[0]; quote == '"' || quote == '\'' {
+			end := strings.IndexByte(text[1:], quote)
+			if end < 0 {
+				return nil
+			}
+			path, text = text[1:end+1], text[end+2:]
+		} else {
+			path, text, _ = strings.Cut(text, " ")
+		}
+		text = strings.TrimSpace(text)
+		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() || !filepath.IsAbs(path) {
+			return nil
+		}
+		paths = append(paths, path)
+	}
+	return paths
+}
+
 // openFiles opens the files at paths, skipping those that fail to open.
 func openFiles(paths []string) []sendpart.File {
 	files := make([]sendpart.File, 0, len(paths))

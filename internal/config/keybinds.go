@@ -186,6 +186,8 @@ type MessagesListKeybinds struct {
 	WhoReacted Keybind `toml:"who_reacted"`
 	// Show the profile of the author of the selected message.
 	OpenProfile Keybind `toml:"open_profile"`
+	// Forward the selected message to another channel or direct message, picked from the channels.
+	Forward Keybind `toml:"forward"`
 	// Show what can be done to the selected message in a menu, as right-clicking it does.
 	OpenMenu Keybind `toml:"open_menu"`
 	// Download one of the selected message's attachments.
@@ -421,6 +423,7 @@ func defaultKeybinds() Keybinds {
 			React:         key("react", "a"),
 			WhoReacted:    key("who reacted", "w"),
 			OpenProfile:   key("profile", "P"),
+			Forward:       key("forward", "f"),
 			OpenMenu:      key("menu", "m"),
 			Download:      key("download", "D"),
 			ViewMedia:     key("view", "v"),

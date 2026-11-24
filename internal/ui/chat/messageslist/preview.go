@@ -27,7 +27,13 @@ type previewSource struct {
 func (m Model) previewSources(message discord.Message) []previewSource {
 	var sources []previewSource
 	for _, attachment := range message.Attachments {
-		sources = append(sources, previewSource{attachment.Proxy, attachment.Width, attachment.Height, attachment.URL, attachment.Filename})
+		proxy := attachment.Proxy
+		if isVideo(attachment) {
+			// A video cannot be drawn, but Discord's media proxy gives its first frame as a picture, which is shown
+			// as Discord shows it, and the video plays when it is clicked.
+			proxy = videoFrame(proxy)
+		}
+		sources = append(sources, previewSource{proxy, attachment.Width, attachment.Height, attachment.URL, attachment.Filename})
 	}
 
 	embeds := message.Embeds
@@ -55,6 +61,30 @@ func (m Model) previewSources(message discord.Message) []previewSource {
 
 	// Non-image files have no dimensions.
 	return slices.DeleteFunc(sources, func(source previewSource) bool { return source.width == 0 || source.height == 0 })
+}
+
+// isVideo reports whether attachment is a video.
+func isVideo(attachment discord.Attachment) bool {
+	if strings.HasPrefix(attachment.ContentType, "video/") {
+		return true
+	}
+	switch strings.ToLower(path.Ext(attachment.Filename)) {
+	case ".mp4", ".webm", ".mov", ".mkv", ".m4v":
+		return true
+	}
+	return false
+}
+
+// videoFrame returns the address of the first frame of the video at proxy, on Discord's media proxy.
+func videoFrame(proxy discord.URL) discord.URL {
+	u, err := url.Parse(string(proxy))
+	if err != nil {
+		return proxy
+	}
+	query := u.Query()
+	query.Set("format", "jpeg")
+	u.RawQuery = query.Encode()
+	return discord.URL(u.String())
 }
 
 // tenorGIF returns the GIF of a Tenor embed, or "". Tenor names a file of each format by its ID and a code of five

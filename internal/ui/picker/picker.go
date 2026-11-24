@@ -37,6 +37,9 @@ func (m Model) Visible() picker.Items {
 	return m.searchState.Visible(m.items, m.cfg.Picker.Height)
 }
 
+// SetTitle changes the title the picker is shown under.
+func (m *Model) SetTitle(title string) { m.title = title }
+
 // Selected returns the selected item.
 func (m Model) Selected() (picker.Item, bool) {
 	return m.searchState.Selected(m.items)

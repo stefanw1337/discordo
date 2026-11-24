@@ -959,6 +959,13 @@ func (m Model) runAction(matches func(...keybind.Keybind) bool) (Model, tview.Cm
 		return m, m.toggleReactors()
 	case matches(keybinds.OpenProfile.Keybind):
 		return m, m.showProfile()
+	case matches(keybinds.Forward.Keybind):
+		message, ok := m.selectedMessage()
+		if !ok {
+			return m, nil
+		}
+		forward := ForwardMsg{Message: *message}
+		return m, cmd.Task(func() tview.Msg { return forward })
 	case matches(keybinds.OpenMenu.Keybind):
 		return m, m.showMenu()
 	case matches(keybinds.ViewMedia.Keybind):

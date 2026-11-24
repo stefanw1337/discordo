@@ -65,6 +65,9 @@ func (m Model) showProfile() tview.Cmd {
 	return cmd.Task(func() tview.Msg { return msg })
 }
 
+// ForwardMsg asks to pick where to forward Message.
+type ForwardMsg struct{ Message discord.Message }
+
 // SearchMsg asks to search the messages of Channel.
 type SearchMsg struct{ Channel *discord.Channel }
 

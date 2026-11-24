@@ -146,3 +146,10 @@ func TestTenorGIF(t *testing.T) {
 		t.Fatalf("tenorGIF of another site = %q, want none", got)
 	}
 }
+
+func TestVideoFrame(t *testing.T) {
+	got := videoFrame("https://media.discordapp.net/attachments/1/2/a.mp4?ex=1&hm=2")
+	if got != "https://media.discordapp.net/attachments/1/2/a.mp4?ex=1&format=jpeg&hm=2" {
+		t.Fatalf("videoFrame = %s", got)
+	}
+}
