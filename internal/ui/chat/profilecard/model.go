@@ -79,6 +79,7 @@ const (
 	bannerWidth, bannerHeight = 600, 240
 	// nameplateRows is the most rows the nameplate takes, under the names, and nameplateSize its usual size.
 	nameplateRows                   = 3
+	nameplateCols                   = 14
 	nameplateWidth, nameplateHeight = 600, 116
 	// innerWidth is the width inside the card's borders and padding.
 	innerWidth = Width - 4
@@ -136,7 +137,7 @@ func (m Model) loadImages() tview.Cmd {
 		request.Fitted[url] = images.Fit{Size: image.Pt(bannerWidth, bannerHeight), MaxCols: innerWidth, MaxRows: bannerRows, Fill: true}
 	}
 	if url := m.nameplateURL(); url != "" && !m.hasImage(url) {
-		request.Fitted[url] = images.Fit{Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: nameplateRows}
+		request.Fitted[url] = images.Fit{Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: nameplateCols, MaxRows: nameplateRows, Mirror: true}
 	}
 	if len(request.Squares) == 0 && len(request.Fitted) == 0 {
 		return nil
@@ -317,6 +318,11 @@ func (m Model) View() tview.Widget {
 
 	header, status, body := m.lines()
 	var names tview.Widget = text.Rich(header...)
+	// The nameplate, which Discord shows behind the name at its right end, is shown beside the names, at the right,
+	// as text cannot be drawn over an image.
+	if nameplate, ok := m.images[m.nameplateURL()]; ok && m.nameplateURL() != "" {
+		names = row.New(names, nameplate).Spacing(1).Height(layout.Shrink)
+	}
 	if avatar, ok := m.images[m.avatarURL()]; ok {
 		names = row.New(avatar, names).Spacing(1).Height(layout.Shrink)
 	}
@@ -330,10 +336,6 @@ func (m Model) View() tview.Widget {
 	content = content.Push(names)
 	if len(status) != 0 {
 		content = content.Push(text.Rich(status...))
-	}
-	// The nameplate Discord shows behind the name is shown under it, as text cannot be drawn over an image.
-	if nameplate, ok := m.images[m.nameplateURL()]; ok && m.nameplateURL() != "" {
-		content = content.Push(nameplate)
 	}
 	content = content.Push(text.Rich(body...))
 

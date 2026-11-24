@@ -25,6 +25,8 @@ type Fit struct {
 	// Fill makes the image take MaxCols by MaxRows cells whole, cut to that shape around its middle, as a banner
 	// fills the width of a profile.
 	Fill bool
+	// Mirror turns the image around left to right, as Discord shows a nameplate.
+	Mirror bool
 }
 
 // Widget is an image to draw: a widget of its own, or lines of text within other text, as custom emoji are.

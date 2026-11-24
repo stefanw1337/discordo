@@ -173,7 +173,11 @@ func (m *Model) loadImages(msg images.RequestedMsg) tview.Cmd {
 		cols := previewCols(uint(size.X), uint(size.Y), cellWidth, cellHeight, fit.MaxCols, fit.MaxRows)
 		width := min(uint(size.X), uint(cols)*cellWidth)
 		bounds := image.Rect(0, 0, int(width), int(uint(size.Y)*width/uint(size.X)))
+		mirror := fit.Mirror
 		cmds = append(cmds, m.loadImage(url, bounds, func(img image.Image) images.Widget {
+			if mirror {
+				img = mirrored(img)
+			}
 			return m.newImage(img, cols, int(cellWidth), int(cellHeight))
 		}))
 	}
@@ -291,6 +295,18 @@ func previewCols(width, height, cellWidth, cellHeight, maxWidth, maxHeight uint)
 	// A tall image is not cut off.
 	tall := width * maxHeight * cellHeight / (height * cellWidth)
 	return int(max(min(own, maxWidth, tall), 1))
+}
+
+// mirrored returns img turned around left to right.
+func mirrored(img image.Image) image.Image {
+	bounds := img.Bounds()
+	dst := image.NewNRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	for y := range bounds.Dy() {
+		for x := range bounds.Dx() {
+			dst.Set(bounds.Dx()-1-x, y, img.At(bounds.Min.X+x, bounds.Min.Y+y))
+		}
+	}
+	return dst
 }
 
 // cropTo cuts img around its middle to the shape of width by height.
