@@ -16,6 +16,7 @@ import (
 	"github.com/ayn2op/discordo/internal/ui/emojis"
 	"github.com/ayn2op/ningen/v3"
 	"github.com/ayn2op/tview"
+	"github.com/ayn2op/tview/viewport"
 	tviewimage "github.com/ayn2op/tview/image"
 	"github.com/ayn2op/tview/layout"
 	"github.com/gdamore/tcell/v3"
@@ -677,5 +678,28 @@ func TestModelHidesStickersAndBoosts(t *testing.T) {
 	ml.cfg.UI.MessagesList.ShowStickersAndBoosts = true
 	if !ml.shown(sticker) || !ml.shown(boost) {
 		t.Fatal("stickers and boosts are hidden when they are to be shown")
+	}
+}
+
+func TestWheelScrollsLines(t *testing.T) {
+	ml := newTestModel(t, testConfig(t))
+	messages := make([]discord.Message, 30)
+	for i := range messages {
+		messages[i] = discord.Message{ID: discord.MessageID(len(messages) + 10 - i), Content: "hi"}
+	}
+	ml.setMessages(messages)
+	area := tview.Rectangle{Width: 40, Height: 5}
+	up := tview.MouseMsg{EventMouse: tcell.NewEventMouse(0, 0, tcell.ButtonNone, tcell.ModNone), Action: tview.MouseScrollUp}
+	y := func(lines int) int {
+		w := wheel{Widget: ml.listView(), lines: lines, at: ml.listViewAt}
+		msg, ok := w.Handle(up, area).(scrollMsg)
+		if !ok {
+			t.Fatal("the wheel did not scroll")
+		}
+		return viewport.ScrollState(msg).Viewport().AbsoluteOffset().Y
+	}
+	one, three := y(1), y(3)
+	if three-one != 2 && one-three != 2 {
+		t.Fatalf("three lines scrolled to %d, one to %d", three, one)
 	}
 }

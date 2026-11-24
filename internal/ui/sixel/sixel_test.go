@@ -388,3 +388,30 @@ func TestScreenSynchronizesImages(t *testing.T) {
 		t.Fatalf("the image was not written within a synchronized update: %q", written)
 	}
 }
+
+// TestScreenKeepsCellsOfImagesMovedUpOrDown checks that the cells an image takes stay the same on the terminal's
+// screen when it moves down a row, as in a scroll: drawn anew, they would clear the image before it is written again.
+func TestScreenKeepsCellsOfImagesMovedUpOrDown(t *testing.T) {
+	SetEnabled(true)
+	t.Cleanup(func() { SetEnabled(false) })
+	screen, out := testScreen(t, 20, 10)
+	widget := New(solid(32, 48, color.NRGBA{0, 0, 255, 255}), 4, 8, 16)
+	draw := func(y int) {
+		screen.Clear()
+		widget.Draw(screen, tview.Rectangle{X: 3, Y: y, Width: 10, Height: 6})
+		screen.Show()
+	}
+	draw(2)
+	_, before, _ := screen.Get(4, 3)
+	draw(3)
+	_, after, _ := screen.Get(4, 3)
+	if before != after {
+		t.Fatal("a cell under an image that moved down a row changed")
+	}
+	if !IsMarker(after) {
+		t.Fatal("the cell is no longer taken for a marker")
+	}
+	if !strings.HasPrefix(out.String(), "\x1b[3;4H") || !strings.Contains(out.String(), "\x1b[4;4H\x1bP") {
+		t.Fatalf("the image was not written where it moved: %q", out.String())
+	}
+}

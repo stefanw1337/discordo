@@ -193,6 +193,9 @@ type (
 		// Whether stickers, and messages of boosts of the server, are shown. Off, as what is paid for is left out.
 		ShowStickersAndBoosts bool `toml:"show_stickers_and_boosts"`
 
+		// How many lines a turn of the mouse wheel scrolls the messages. The settings page (ctrl+s) changes it.
+		ScrollLines int `toml:"scroll_lines"`
+
 		// How avatars, attachment previews and custom emoji are drawn: "auto", "kitty", "sixel" or "halfblocks".
 		// "auto" uses kitty's graphics in kitty, Ghostty and Rio, sixels in Windows Terminal, WezTerm, foot, mintty
 		// and Konsole, and half blocks elsewhere.
@@ -309,6 +312,7 @@ func defaultUI() UIConfig {
 			ReplyIndicator:     ">",
 			ForwardedIndicator: "<",
 			ShortenFileLinks:   true,
+			ScrollLines:        3,
 			ImageProtocol:      "auto",
 			Attachments:        attachments,
 			Avatars:            AvatarsUIConfig{Preview: true, Height: 2},

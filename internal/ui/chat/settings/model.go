@@ -89,7 +89,12 @@ func Settings() []Setting {
 	membersWidth := newSetting("Member list width", []string{"members_tree", "width_percent"},
 		[]Choice{{"15%", 15}, {"20%", 20}, {"25%", 25}, {"30%", 30}, {"35%", 35}}, true, membersGet, membersSet)
 
-	settings := []Setting{guildIcons, sidebarWidth, membersWidth, timeFormat, dateFormat, images}
+	scrollGet := func(c *config.Config) any { return c.UI.MessagesList.ScrollLines }
+	scrollSet := func(c *config.Config, value any) { c.UI.MessagesList.ScrollLines = value.(int) }
+	scrollLines := newSetting("Scroll speed", []string{"ui", "messages_list", "scroll_lines"},
+		[]Choice{{"1 line", 1}, {"2 lines", 2}, {"3 lines", 3}, {"5 lines", 5}, {"8 lines", 8}}, true, scrollGet, scrollSet)
+
+	settings := []Setting{guildIcons, sidebarWidth, membersWidth, scrollLines, timeFormat, dateFormat, images}
 	settings = append(settings, voiceSettings()...)
 	g, s = boolSetting(func(c *config.Config) *bool { return &c.Activity.Enabled })
 	settings = append(settings,

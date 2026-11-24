@@ -435,6 +435,12 @@ Whether stickers, and messages of boosts of the server, are shown. Off, as what 
 
 Default: `false`
 
+### ui.messages_list.scroll_lines
+
+How many lines a turn of the mouse wheel scrolls the messages. The settings page (ctrl+s) changes it.
+
+Default: `3`
+
 ### ui.messages_list.image_protocol
 
 How avatars, attachment previews and custom emoji are drawn: "auto", "kitty", "sixel" or "halfblocks".

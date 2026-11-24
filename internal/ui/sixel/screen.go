@@ -62,7 +62,8 @@ func SetEnabled(on bool) { enabled.Store(on) }
 
 // register returns the ID of img drawn over cols by rows cells of cellWidth by cellHeight pixels.
 func register(img image.Image, cols, rows, cellWidth, cellHeight int) (int, bool) {
-	if cols <= 0 || rows <= 0 || cols > MaxCols || rows > MaxRows {
+	// The last row number is anyRow's.
+	if cols <= 0 || rows <= 0 || cols > MaxCols || rows >= MaxRows {
 		return 0, false
 	}
 	images.mutex.Lock()
@@ -96,10 +97,42 @@ func markerStyle(id, col, row int) tcell.Style {
 	return tcell.StyleDefault.Foreground(color.NewHexColor(v))
 }
 
+// anyRow is the row a marker on the terminal's screen tells: none, so that the cells of an image that moves up or
+// down, as in a scroll, stay the same there, and the terminal does not draw them anew, which would clear the image
+// before it is written again, making it blink. The screen keeps the rows itself.
+const anyRow = MaxRows - 1
+
+// storedStyle returns the style a marker of the cell at col of the image with id is given on the terminal's screen.
+func storedStyle(id, col int) tcell.Style {
+	v := int32(id)<<(colBits+rowBits) | int32(col)<<rowBits | anyRow
+	return tcell.StyleDefault.Foreground(color.NewHexColor(v))
+}
+
 // IsMarker reports whether style is that of a marker, which nothing should change, so that it still tells its image.
 func IsMarker(style tview.Style) bool {
-	_, _, _, ok := decodeMarker(style)
+	if _, _, _, ok := decodeMarker(style); ok {
+		return true
+	}
+	_, _, ok := decodeStored(style)
 	return ok
+}
+
+// decodeStored returns the image and column that style, of a marker as the terminal's screen holds it, tells.
+func decodeStored(style tview.Style) (id, col int, ok bool) {
+	fg := style.GetForeground()
+	if !fg.IsRGB() || style.GetBackground() != color.Default {
+		return 0, 0, false
+	}
+	v := int(fg.Hex())
+	id, col = v>>(colBits+rowBits), v>>rowBits&(MaxCols-1)
+	if id == 0 || v&(MaxRows-1) != anyRow {
+		return 0, 0, false
+	}
+	e, found := lookup(id)
+	if !found || col >= e.cols {
+		return 0, 0, false
+	}
+	return id, col, true
 }
 
 // decodeMarker returns the image and cell that style marks.
@@ -146,10 +179,43 @@ type Screen struct {
 	now func() time.Time
 	// size is the size of the screen when it was last shown.
 	size [2]int
+	// marks are the markers put in the frame being drawn, by cell, with the rows the terminal's screen leaves out.
+	marks map[[2]int]mark
 	// unsynchronized leaves out synchronized updates, for tests to see only the images written.
 	unsynchronized bool
 	// moved is when images last moved, as they do while scrolling.
 	moved time.Time
+}
+
+// mark is the cell of an image that a marker stands for.
+type mark struct{ id, col, row int }
+
+// Put puts str in a cell, keeping the row of a marker to itself and giving the terminal's screen the marker without it.
+func (s *Screen) Put(x, y int, str string, style tcell.Style) (string, int) {
+	return s.Screen.Put(x, y, str, s.store(x, y, style))
+}
+
+// SetContent sets a cell, as Put does.
+func (s *Screen) SetContent(x, y int, primary rune, combining []rune, style tcell.Style) {
+	s.Screen.SetContent(x, y, primary, combining, s.store(x, y, style))
+}
+
+// Clear clears the screen, and the markers of the last frame.
+func (s *Screen) Clear() {
+	clear(s.marks)
+	s.Screen.Clear()
+}
+
+func (s *Screen) store(x, y int, style tcell.Style) tcell.Style {
+	id, col, row, ok := decodeMarker(style)
+	if !ok {
+		return style
+	}
+	if s.marks == nil {
+		s.marks = make(map[[2]int]mark)
+	}
+	s.marks[[2]int{x, y}] = mark{id, col, row}
+	return storedStyle(id, col)
 }
 
 // settle is how long animations wait once images stop moving, for their frames not to slow a scroll.
@@ -279,21 +345,22 @@ func (s *Screen) writeImages() {
 	// its corner is.
 	type place struct{ id, x, y int }
 	marks := map[place]*found{}
-	for y := range height {
-		for x := range width {
-			_, style, _ := s.Get(x, y)
-			id, col, row, ok := decodeMarker(style)
-			if !ok {
-				continue
-			}
-			key := place{id, x - col, y - row}
-			f := marks[key]
-			if f == nil {
-				f = &found{x: key.x, y: key.y, full: map[int]int{}}
-				marks[key] = f
-			}
-			f.full[row]++
+	for cell, m := range s.marks {
+		x, y := cell[0], cell[1]
+		if x >= width || y >= height {
+			continue
 		}
+		// A marker drawn over since is no longer one.
+		if _, style, _ := s.Get(x, y); style != storedStyle(m.id, m.col) {
+			continue
+		}
+		key := place{m.id, x - m.col, y - m.row}
+		f := marks[key]
+		if f == nil {
+			f = &found{x: key.x, y: key.y, full: map[int]int{}}
+			marks[key] = f
+		}
+		f.full[m.row]++
 	}
 
 	now := s.now()

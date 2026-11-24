@@ -126,7 +126,10 @@ func (m Model) title() string {
 	return title
 }
 
-func (m Model) listView() viewport.Widget {
+func (m Model) listView() viewport.Widget { return m.listViewAt(m.scrollState) }
+
+// listViewAt is the messages, scrolled as state says.
+func (m Model) listViewAt(state viewport.ScrollState) viewport.Widget {
 	cfg, theme := m.cfg.UI.ScrollBar, m.cfg.Theme.ScrollBar
 	bar := scrollbar.New().
 		SymbolSet(cfg.SymbolSet.SymbolSet).
@@ -157,7 +160,7 @@ func (m Model) listView() viewport.Widget {
 		}).
 		SelectedStyle(tcell.StyleDefault).
 		OnChange(func(cursor int) tview.Msg { return listMsg(cursor) })
-	return viewport.New(rightClickable{l}, m.scrollState).
+	return viewport.New(rightClickable{l}, state).
 		Target(l.Target(m.target)).
 		ScrollBar(bar, cfg.Visibility.ScrollBarVisibility).
 		// Older messages are added above, so the position is kept from the newest, which also keeps the newest in view.
@@ -992,7 +995,36 @@ func (m Model) runAction(matches func(...keybind.Keybind) bool) (Model, tview.Cm
 }
 
 func (m Model) View() tview.Widget {
-	return ui.Box(linkClicks{Widget: m.listView(), links: m.links}, m.cfg, m.focused).
+	list := wheel{Widget: m.listView(), lines: m.cfg.UI.MessagesList.ScrollLines, at: m.listViewAt}
+	return ui.Box(linkClicks{Widget: list, links: m.links}, m.cfg, m.focused).
 		Title(ui.Label(m.title(), m.cfg.Theme.Title, m.focused)).
 		Footer(ui.Label(m.footer, m.cfg.Theme.Footer, m.focused))
+}
+
+// wheel scrolls the messages lines lines at a turn of the mouse wheel, rather than the one the viewport scrolls.
+type wheel struct {
+	tview.Widget
+	lines int
+	// at is the messages scrolled as a state says, to scroll on from where the last line left them.
+	at func(viewport.ScrollState) viewport.Widget
+}
+
+func (w wheel) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {
+	handled := w.Widget.Handle(msg, area)
+	mouse, ok := msg.(tview.MouseMsg)
+	if !ok || (mouse.Action != tview.MouseScrollUp && mouse.Action != tview.MouseScrollDown) {
+		return handled
+	}
+	for range w.lines - 1 {
+		scrolled, ok := handled.(scrollMsg)
+		if !ok {
+			break
+		}
+		next := w.at(viewport.ScrollState(scrolled)).Handle(msg, area)
+		if next == nil {
+			break
+		}
+		handled = next
+	}
+	return handled
 }
