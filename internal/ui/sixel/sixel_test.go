@@ -160,6 +160,7 @@ func testScreen(t *testing.T, width, height int) (*Screen, *bytes.Buffer) {
 	screen := NewScreen(inner)
 	out := new(bytes.Buffer)
 	screen.out = out
+	screen.unsynchronized = true
 	return screen, out
 }
 
@@ -338,7 +339,7 @@ func TestAnimationFrames(t *testing.T) {
 	t.Cleanup(inner.Fini)
 	// Made without NewScreen, which would also move the frames on in the background.
 	var out bytes.Buffer
-	screen := &Screen{Screen: inner, out: &out, written: map[[2]int]shown{}, cache: map[shown][]byte{}, quantized: map[[2]int]*Indexed{}}
+	screen := &Screen{Screen: inner, out: &out, written: map[[2]int]shown{}, cache: map[shown][]byte{}, quantized: map[[2]int]*Indexed{}, unsynchronized: true}
 	now := time.Unix(0, 0)
 	screen.now = func() time.Time { return now }
 
@@ -372,5 +373,18 @@ func TestScreenSameImageTwice(t *testing.T) {
 	screen.Show()
 	if !strings.Contains(out.String(), "\x1b[6;1H") {
 		t.Fatalf("the image in full, at row 6, was not written: %q", out.String())
+	}
+}
+
+func TestScreenSynchronizesImages(t *testing.T) {
+	SetEnabled(true)
+	t.Cleanup(func() { SetEnabled(false) })
+	screen, out := testScreen(t, 20, 10)
+	screen.unsynchronized = false
+	New(solid(8, 8, color.NRGBA{255, 0, 0, 255}), 1, 8, 16).Draw(screen, tview.Rectangle{X: 1, Y: 1, Width: 5, Height: 3})
+	screen.Show()
+	written := out.String()
+	if !strings.HasPrefix(written, "\x1b[?2026h") || !strings.HasSuffix(written, "\x1b[?2026l") || !strings.Contains(written, "\x1bP") {
+		t.Fatalf("the image was not written within a synchronized update: %q", written)
 	}
 }

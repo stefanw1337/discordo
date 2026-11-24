@@ -146,6 +146,8 @@ type Screen struct {
 	now func() time.Time
 	// size is the size of the screen when it was last shown.
 	size [2]int
+	// unsynchronized leaves out synchronized updates, for tests to see only the images written.
+	unsynchronized bool
 	// moved is when images last moved, as they do while scrolling.
 	moved time.Time
 }
@@ -208,21 +210,57 @@ func (s *Screen) Show() {
 		s.size = [2]int{width, height}
 		clear(s.written)
 	}
+	enabled := Enabled()
+	if enabled {
+		s.synchronize(true)
+	}
 	s.Screen.Show()
 	s.mutex.Unlock()
-	if Enabled() {
+	if enabled {
 		s.writeImages()
+		s.mutex.Lock()
+		s.synchronize(false)
+		s.mutex.Unlock()
 	}
+}
+
+// synchronize begins or ends a synchronized update, which a terminal that knows it, such as Windows Terminal, shows
+// at once when it ends: the text drawn over images that moved, which clears them, and the images written again,
+// which would otherwise blink between the two. Other terminals ignore it.
+func (s *Screen) synchronize(begin bool) {
+	if s.unsynchronized {
+		return
+	}
+	out := s.out
+	if out == nil {
+		tty, ok := s.Tty()
+		if !ok {
+			return
+		}
+		out = tty
+	}
+	sequence := "\x1b[?2026l"
+	if begin {
+		sequence = "\x1b[?2026h"
+	}
+	_, _ = io.WriteString(out, sequence)
 }
 
 // Sync redraws the whole screen, and so its images.
 func (s *Screen) Sync() {
 	s.mutex.Lock()
 	clear(s.written)
+	enabled := Enabled()
+	if enabled {
+		s.synchronize(true)
+	}
 	s.Screen.Sync()
 	s.mutex.Unlock()
-	if Enabled() {
+	if enabled {
 		s.writeImages()
+		s.mutex.Lock()
+		s.synchronize(false)
+		s.mutex.Unlock()
 	}
 }
 
