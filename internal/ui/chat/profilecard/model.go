@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ayn2op/arikawa/v3/api"
 	"github.com/ayn2op/arikawa/v3/discord"
@@ -80,6 +81,10 @@ const (
 	bannerWidth, bannerHeight = 600, 240
 	// nameplateSize is the usual size of a nameplate, which is drawn as tall as the avatar, behind the names.
 	nameplateWidth, nameplateHeight = 600, 116
+	// avatarCols is about how wide the avatar beside the names is, and plateEndCols how much of the nameplate
+	// reaches past the names.
+	avatarCols   = 9
+	plateEndCols = 14
 	// innerWidth is the width inside the card's borders and padding.
 	innerWidth = Width - 4
 	// cdn is where Discord keeps avatars and banners.
@@ -176,8 +181,15 @@ func (m Model) loadImages() tview.Cmd {
 	}
 	if url := m.plateURL(); url != "" && !m.hasImage(url) {
 		lines := m.plateLines()
+		// The nameplate reaches as far as the names and the picture at its end need, not the card's width, for its
+		// color not to be spread thin.
+		cols := 0
+		for _, line := range lines {
+			cols = max(cols, utf8.RuneCountInString(line.text))
+		}
+		cols = min(innerWidth, avatarCols+cols+plateEndCols)
 		request.Fitted[url] = images.Fit{
-			Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: innerWidth, MaxRows: uint(len(lines)), Beside: avatarRows, Fill: true,
+			Size: image.Pt(nameplateWidth, nameplateHeight), MaxCols: uint(cols), MaxRows: uint(len(lines)), Beside: avatarRows, Fill: true,
 			Compose: func(img image.Image, width, height int) image.Image {
 				return composePlate(img, width, height, len(lines), lines)
 			},
