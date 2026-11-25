@@ -92,11 +92,14 @@ const (
 )
 
 // avatarURL returns the avatar of the user, the one set for the guild if any.
+//
+// It is asked for at a size of its own, as the messages list shows the same avatars smaller, under the same address
+// at its size, which would be taken for the profile's.
 func (m Model) avatarURL() discord.URL {
 	if member := m.member(); member != nil && member.Avatar != "" {
-		return fmt.Sprintf("%s/guilds/%s/users/%s/avatars/%s.png?size=128", cdn, m.guildID, m.user.ID, member.Avatar)
+		return fmt.Sprintf("%s/guilds/%s/users/%s/avatars/%s.png?size=256", cdn, m.guildID, m.user.ID, member.Avatar)
 	}
-	return m.user.AvatarURLWithType(discord.PNGImage) + "?size=128"
+	return m.user.AvatarURLWithType(discord.PNGImage) + "?size=256"
 }
 
 // bannerURL returns the banner of the user, the one set for the guild if any, or "" if they have none.
