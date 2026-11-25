@@ -666,6 +666,18 @@ func (m Model) dmNodeText() string {
 	return dmNodeName + mentionsLabel(m.mentions(channels...))
 }
 
+// Mentions returns the unread mentions of every server and direct message, which the taskbar's badge tells.
+func (m Model) Mentions() int {
+	total := 0
+	if guilds, err := m.state.Cabinet.Guilds(); err == nil {
+		for _, guild := range guilds {
+			total += m.guildMentions(guild.ID)
+		}
+	}
+	channels, _ := m.state.Cabinet.PrivateChannels()
+	return total + m.mentions(channels...)
+}
+
 // mentions returns the number of unread mentions in channels.
 func (m Model) mentions(channels ...discord.Channel) (total int) {
 	for _, channel := range channels {

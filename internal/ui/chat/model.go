@@ -101,6 +101,10 @@ type Model struct {
 	forwarding *discord.Message
 	// gifPicker searches GIFs to send, opened by "/gif" in the composer.
 	gifPicker gifpicker.Model
+	// badgeMentions is the number the taskbar's badge shows.
+	badgeMentions int
+	// badgeTicking is set once the badge is brought up to date regularly.
+	badgeTicking bool
 	// activity is what the user is shown doing.
 	activity sharedActivity
 	// pendingJump is the message to select once its channel, which is being opened, loads, or zero.
@@ -524,6 +528,8 @@ func (m Model) update(msg tview.Msg) (Model, tview.Cmd) {
 		return m, nil
 	case programs.ChangedMsg:
 		return m, m.scanActivity(0)
+	case badgeTickMsg:
+		return m, m.updateBadge()
 	case activityScannedMsg:
 		return m, m.activityScanned(msg)
 	case settings.ChangedMsg:

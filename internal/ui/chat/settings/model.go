@@ -96,6 +96,8 @@ func Settings() []Setting {
 
 	settings := []Setting{guildIcons, sidebarWidth, membersWidth, scrollLines, timeFormat, dateFormat, images}
 	settings = append(settings, voiceSettings()...)
+	g, s = boolSetting(func(c *config.Config) *bool { return &c.UI.Badges })
+	settings = append(settings, newSetting("Unread badges", []string{"ui", "badges"}, []Choice{{"off", false}, {"on", true}}, true, g, s))
 	g, s = boolSetting(func(c *config.Config) *bool { return &c.Activity.Enabled })
 	settings = append(settings,
 		newSetting("Share what I'm doing", []string{"activity", "enabled"}, []Choice{{"off", false}, {"on", true}}, true, g, s),

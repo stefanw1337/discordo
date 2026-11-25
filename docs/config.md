@@ -612,6 +612,13 @@ Maximum height. 0 makes the list as tall as needed.
 
 Default: `0`
 
+## ui.badges
+
+Whether badges tell of mentions: under the icons of the server bar, with "new" for a server with unread
+messages, and on the terminal's button on the Windows taskbar. The settings page (ctrl+s) turns them off.
+
+Default: `true`
+
 # voice
 
 ## voice.sensitivity

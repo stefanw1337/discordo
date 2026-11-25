@@ -1,6 +1,7 @@
 package guildstree
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -216,6 +217,8 @@ type bar struct {
 	tview.Widget
 	entries []barEntry
 	offset  int
+	// badges shows, under each icon, its mentions, or "new" for one unread.
+	badges bool
 }
 
 // barView returns the bar as it is now.
@@ -234,10 +237,13 @@ func (m Model) barView() bar {
 			}
 		case dmNode:
 			entry.name = "Direct Messages"
+			channels, _ := m.state.Cabinet.PrivateChannels()
+			entry.mentions = m.mentions(channels...)
 		}
 		entries[i] = entry
 	}
-	return bar{Widget: spacer.New().Width(layout.Fixed(barWidth)).Height(layout.Fill), entries: entries, offset: m.barOffset}
+	return bar{Widget: spacer.New().Width(layout.Fixed(barWidth)).Height(layout.Fill), entries: entries, offset: m.barOffset,
+		badges: m.cfg.UI.Badges}
 }
 
 func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
@@ -263,6 +269,18 @@ func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
 			}
 		}
 
+		// The badge hangs under the icon's right corner, in the row between icons, as Discord puts it on its corner.
+		if b.badges && y+barRows < area.Y+area.Height {
+			if label := badgeLabel(entry); label != "" {
+				style := tcell.StyleDefault.Background(color.Red).Foreground(color.White).Bold(true)
+				if entry.mentions == 0 {
+					style = tcell.StyleDefault.Background(color.Silver).Foreground(color.Black)
+				}
+				end := area.X + 1 + 2*barRows
+				screen.PutStrStyled(end-len(label), y+barRows, label, style)
+			}
+		}
+
 		x := area.X + 1
 		if len(entry.icon) >= barRows && allMarkers(entry.icon) {
 			for row := range barRows {
@@ -279,6 +297,19 @@ func (b bar) Draw(screen tview.Screen, area tview.Rectangle) {
 		screen.FillArea(x, y, 2*barRows, barRows, ' ', span.Style)
 		tview.Print(screen, label, x, y+barRows/2, 2*barRows, tview.HorizontalAlignmentCenter, span.Style)
 	}
+}
+
+// badgeLabel is what the badge of entry says: its mentions, or "new" for one unread but not open.
+func badgeLabel(entry barEntry) string {
+	switch {
+	case entry.mentions > 99:
+		return " 99+ "
+	case entry.mentions > 0:
+		return " " + strconv.Itoa(entry.mentions) + " "
+	case entry.unread && !entry.open:
+		return "new"
+	}
+	return ""
 }
 
 func (b bar) Handle(msg tview.Msg, area tview.Rectangle) tview.Msg {

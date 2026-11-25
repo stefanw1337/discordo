@@ -156,6 +156,10 @@ func (m *Model) applyEvent(event gateway.Event) tview.Cmd {
 
 	case *gateway.ReadyEvent:
 		commands := cmd.Batch{m.loadGuildsTree(event), m.updatePane(paneMembersTree, event)}
+		if !m.badgeTicking {
+			m.badgeTicking = true
+			commands = append(commands, m.updateBadge())
+		}
 		// A new session shows nothing until it is sent again.
 		m.activity.sent, m.activity.exe = nil, ""
 		if m.cfg.Activity.Enabled {

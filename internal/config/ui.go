@@ -122,6 +122,9 @@ type (
 		MessagesList MessagesListUIConfig `toml:"messages_list"`
 		// The list of mention and emoji suggestions above the composer. Its width and height are capped to the available space.
 		Autocomplete AutocompleteUIConfig `toml:"autocomplete"`
+		// Whether badges tell of mentions: under the icons of the server bar, with "new" for a server with unread
+		// messages, and on the terminal's button on the Windows taskbar. The settings page (ctrl+s) turns them off.
+		Badges bool `toml:"badges"`
 	}
 
 	TabsUIConfig struct {
@@ -291,6 +294,7 @@ func defaultUI() UIConfig {
 		PreviewHeight:    30,
 	}
 	return UIConfig{
+		Badges: true,
 		Tabs: TabsUIConfig{
 			Alignment:       AlignmentWrapper{tview.HorizontalAlignmentCenter},
 			Separator:       "│",
