@@ -71,12 +71,12 @@ func TestComposePlate(t *testing.T) {
 	if nrgba.Bounds().Dx() != 370 || nrgba.Bounds().Dy() != 40 {
 		t.Fatalf("size = %v", nrgba.Bounds())
 	}
-	if right := nrgba.NRGBAAt(365, 5); right.A < 200 || right.R < 150 || right.G > 20 {
+	if right := nrgba.NRGBAAt(365, 5); right.A != 255 || right.R < 120 || right.G > 20 {
 		t.Fatalf("the nameplate is not kept to the right: %v", right)
 	}
-	// Its color comes in from the left, behind the name.
+	// Its color is behind the name too, whole, as sixels draw no see-through pixels, more of it to the right.
 	left, middle := nrgba.NRGBAAt(0, 30), nrgba.NRGBAAt(185, 30)
-	if left.A != 0 || middle.A == 0 || middle.R == 0 || middle.G != 0 {
+	if left.A != 255 || left.R <= left.G || middle.R <= left.R {
 		t.Fatalf("the color behind the name: %v at the left, %v in the middle", left, middle)
 	}
 	yellow := false

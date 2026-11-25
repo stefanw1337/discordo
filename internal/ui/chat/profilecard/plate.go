@@ -20,6 +20,10 @@ const (
 	plateOpacity    = 0.6
 	plateBackground = 0.85
 	plateShade      = 0.45
+	// plateStart is how much of the color shows at the left end, behind the name, and plateBehind the gray of the
+	// terminal's background it is laid over.
+	plateStart  = 0.3
+	plateBehind = 12.0
 )
 
 // plateLine is a line of text drawn over a nameplate, in its color.
@@ -69,8 +73,8 @@ func composePlate(plate image.Image, width, height, rows int, lines []plateLine)
 		}
 		for y := range height {
 			for x := range width {
-				// The color, from none at the left to most at the right.
-				backA := plateBackground * float64(x) / float64(max(width-1, 1))
+				// The color, from a little at the left, behind the name, to most at the right.
+				backA := plateStart + (plateBackground-plateStart)*float64(x)/float64(max(width-1, 1))
 				var front color.NRGBA
 				if at := x - (width - w); at >= 0 && at < w {
 					front = scaled.NRGBAAt(at, y)
@@ -84,7 +88,12 @@ func composePlate(plate image.Image, width, height, rows int, lines []plateLine)
 				mix := func(f uint8, back float64) uint8 {
 					return uint8(min((float64(f)*frontA+back*backA*(1-frontA))/outA, 255))
 				}
-				dst.SetNRGBA(x, y, color.NRGBA{mix(front.R, r), mix(front.G, g), mix(front.B, b), uint8(outA * 255)})
+				// Sixels have no see-through pixels but whole ones, so the plate is laid over the terminal's dark
+				// background here, and drawn whole.
+				over := func(c uint8, bg float64) uint8 { return uint8(min(float64(c)*outA+bg*(1-outA), 255)) }
+				dst.SetNRGBA(x, y, color.NRGBA{
+					over(mix(front.R, r), plateBehind), over(mix(front.G, g), plateBehind), over(mix(front.B, b), plateBehind), 255,
+				})
 			}
 		}
 	}
